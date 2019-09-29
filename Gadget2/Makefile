@@ -101,13 +101,17 @@ SYSTYPE="MPA"
 ifeq ($(SYSTYPE),"MPA")
 CC       =  mpicc   
 OPTIMIZE =  -O3 -Wall
-GSL_INCL =  -I/usr/common/pdsoft/include
-GSL_LIBS =  -L/usr/common/pdsoft/lib  -Wl,"-R /usr/common/pdsoft/lib"
+#GSL_INCL =  -I/home/rdma_match/library/gsl/include/
+GSL_INCL = 
+#GSL_LIBS =  -L/home/rdma_match/library/gsl/lib/
+GSL_LIBS = 
+#FFTW_INCL= -I/home/rdma_match/library/fftw/include/ 
 FFTW_INCL= 
+#FFTW_LIBS= -L/home/rdma_match/library/fftw/lib/
 FFTW_LIBS= 
-MPICHLIB =
-HDF5INCL =  
-HDF5LIB  =  -lhdf5 -lz 
+MPICHLIB = 
+HDF5INCL =
+HDF5LIB  =  -lhdf5
 endif
 
 

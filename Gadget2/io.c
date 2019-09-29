@@ -7,6 +7,9 @@
 
 #ifdef HAVE_HDF5
 #include <hdf5.h>
+#define H5Acreate H5Acreate1
+#define H5Gcreate H5Gcreate1
+#define H5Dcreate H5Dcreate1
 #endif
 
 #include "allvars.h"

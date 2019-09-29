@@ -8,6 +8,8 @@
 #include "allvars.h"
 #include "proto.h"
 
+#define H5Gopen H5Gopen1
+#define H5Dopen H5Dopen1
 
 /*! \file read_ic.c
  *  \brief Read initial conditions in one of Gadget's file formats
