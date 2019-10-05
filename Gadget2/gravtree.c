@@ -58,6 +58,60 @@ int RDMA_MakeAll(void *buf, int count_in_byte, int root, int rdma_group) {
   return 0;
 }
 
+int RDMA_GetOffsetRank(int offset, int is_right_side, int rdma_group) {
+  int local_rank = RDMA_Rank();
+  int whole_ranks = rdma_group.ranks;
+  int offset_rank;
+
+  if (is_right_side) {
+    offset_rank = local_rank + offset;
+    if (offset_rank > whole_ranks - 1) {
+      offset_rank = offset_rank - whole_ranks;
+    }
+  } else {
+    offset_rank = local_rank - offset;
+    if (offset_rank < 0) {
+      offset_rank = offset_rank + whole_ranks;
+    }
+  }
+
+  return offset_rank;
+}
+
+int RDMA_ExchangeAll_exp(const void *sendbuf, int sendcount, void *recvbuf,
+                         int recvcount, int rdma_group) {
+  int local_rank = RDMA_Rank();
+  int whole_ranks = rdma_group.ranks;
+
+  AMessage *send_msg;
+  AMessage *recv_msg;
+
+  unsigned char *buffer =
+      (unsigned char *)malloc(sizeof(unsigned char) * sendcount);
+
+  send_msg = AMessage_create((void *)sendbuf, sendcount, 0);
+
+  int first_send_rank = RDMA_GetOffsetRank(1, 1, rdma_group);
+  send_(rdma_group.loacl.sockets[first_send_rank], msg);
+
+  memcpy((unsigned char *)recvbuf + local_rank * recvcount, sendbuf, sendcount);
+  for (int i = 2; i < whole_ranks; i++) {
+    int send_rank = RDMA_GetOffsetRank(i, 1, rdma_group);
+    int recv_rank = RDMA_GetOffsetRank(i - 1, 0, rdma_group);
+    send_(rdma_group.loacl.sockets[send_rank], send_msg);
+
+    recv_msg = recv_(rdma_group.loacl.sockets[recv_rank]);
+    memcpy((unsigned char *)recvbuf + recv_rank * recvcount, sendbuf,
+           sendcount);
+    AMessage_destroy(recv_msg);
+  }
+
+  int last_recv_rank = RDMA_GetOffsetRank(whole_ranks - 1, 0, rdma_group);
+  recv_msg = recv_(rdma_group.loacl.sockets[last_recv_rank]);
+  memcpy((unsigned char *)recvbuf + recv_rank * recvcount, sendbuf, sendcount);
+  AMessage_destroy(recv_msg);
+}
+
 int RDMA_ExchangeAll(const void *sendbuf, int sendcount, void *recvbuf,
                      int recvcount, int rdma_group) {
   int local_rank = RDMA_Rank();
