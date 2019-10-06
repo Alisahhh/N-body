@@ -941,8 +941,8 @@ void domain_determineTopTree(void)
       ntopoffset[i] *= sizeof(struct topnode_exchange);
     }
 
-  MPI_Allgatherv(toplist_local, ntop_local * sizeof(struct topnode_exchange), R_TYPE_BYTE,
-		 toplist, ntopnodelist, ntopoffset, R_TYPE_BYTE, MPI_COMM_WORLD);
+  RDMA_Allgatherv_exp(toplist_local, ntop_local * sizeof(struct topnode_exchange), R_TYPE_BYTE,
+		 toplist, ntopnodelist, ntopoffset, R_TYPE_BYTE);
 
   qsort(toplist, ntop, sizeof(struct topnode_exchange), domain_compare_toplist);
 
