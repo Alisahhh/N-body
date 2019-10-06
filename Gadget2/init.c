@@ -6,11 +6,9 @@
 #include "allvars.h"
 #include "proto.h"
 
-
 /*! \file init.c
  *  \brief Code for initialisation of a simulation from initial conditions
  */
-
 
 /*! This function reads the initial conditions, and allocates storage for the
  *  tree. Various variables of the particle data are initialised and An intial
@@ -25,76 +23,76 @@ void init(void)
   All.Time = All.TimeBegin;
 
   switch (All.ICFormat)
-    {
-    case 1:
+  {
+  case 1:
 #if (MAKEGLASS > 1)
-      seed_glass();
+    seed_glass();
 #else
-      read_ic(All.InitCondFile);
+    read_ic(All.InitCondFile);
 #endif
-      break;
-    case 2:
-    case 3:
-      read_ic(All.InitCondFile);
-      break;
-    default:
-      if(ThisTask == 0)
-	printf("ICFormat=%d not supported.\n", All.ICFormat);
-      endrun(0);
-    }
+    break;
+  case 2:
+  case 3:
+    read_ic(All.InitCondFile);
+    break;
+  default:
+    if (ThisTask == 0)
+      printf("ICFormat=%d not supported.\n", All.ICFormat);
+    endrun(0);
+  }
 
   All.Time = All.TimeBegin;
   All.Ti_Current = 0;
 
-  if(All.ComovingIntegrationOn)
-    {
-      All.Timebase_interval = (log(All.TimeMax) - log(All.TimeBegin)) / TIMEBASE;
-      a3 = All.Time * All.Time * All.Time;
-    }
+  if (All.ComovingIntegrationOn)
+  {
+    All.Timebase_interval = (log(All.TimeMax) - log(All.TimeBegin)) / TIMEBASE;
+    a3 = All.Time * All.Time * All.Time;
+  }
   else
-    {
-      All.Timebase_interval = (All.TimeMax - All.TimeBegin) / TIMEBASE;
-      a3 = 1;
-    }
+  {
+    All.Timebase_interval = (All.TimeMax - All.TimeBegin) / TIMEBASE;
+    a3 = 1;
+  }
 
   set_softenings();
 
-  All.NumCurrentTiStep = 0;	/* setup some counters */
+  All.NumCurrentTiStep = 0; /* setup some counters */
   All.SnapshotFileCount = 0;
-  if(RestartFlag == 2)
+  if (RestartFlag == 2)
     All.SnapshotFileCount = atoi(All.InitCondFile + strlen(All.InitCondFile) - 3) + 1;
 
   All.TotNumOfForces = 0;
   All.NumForcesSinceLastDomainDecomp = 0;
 
-  if(All.ComovingIntegrationOn)
-    if(All.PeriodicBoundariesOn == 1)
+  if (All.ComovingIntegrationOn)
+    if (All.PeriodicBoundariesOn == 1)
       check_omega();
 
   All.TimeLastStatistics = All.TimeBegin - All.TimeBetStatistics;
 
-  if(All.ComovingIntegrationOn)	/*  change to new velocity variable */
-    {
-      for(i = 0; i < NumPart; i++)
-	for(j = 0; j < 3; j++)
-	  P[i].Vel[j] *= sqrt(All.Time) * All.Time;
-    }
+  if (All.ComovingIntegrationOn) /*  change to new velocity variable */
+  {
+    for (i = 0; i < NumPart; i++)
+      for (j = 0; j < 3; j++)
+        P[i].Vel[j] *= sqrt(All.Time) * All.Time;
+  }
 
-  for(i = 0; i < NumPart; i++)	/*  start-up initialization */
-    {
-      for(j = 0; j < 3; j++)
-	P[i].GravAccel[j] = 0;
+  for (i = 0; i < NumPart; i++) /*  start-up initialization */
+  {
+    for (j = 0; j < 3; j++)
+      P[i].GravAccel[j] = 0;
 #ifdef PMGRID
-      for(j = 0; j < 3; j++)
-	P[i].GravPM[j] = 0;
+    for (j = 0; j < 3; j++)
+      P[i].GravPM[j] = 0;
 #endif
-      P[i].Ti_endstep = 0;
-      P[i].Ti_begstep = 0;
+    P[i].Ti_endstep = 0;
+    P[i].Ti_begstep = 0;
 
-      P[i].OldAcc = 0;
-      P[i].GravCost = 1;
-      P[i].Potential = 0;
-    }
+    P[i].OldAcc = 0;
+    P[i].GravCost = 1;
+    P[i].Potential = 0;
+  }
 
 #ifdef PMGRID
   All.PM_Ti_endstep = All.PM_Ti_begstep = 0;
@@ -102,29 +100,28 @@ void init(void)
 
 #ifdef FLEXSTEPS
   All.PresentMinStep = TIMEBASE;
-  for(i = 0; i < NumPart; i++)	/*  start-up initialization */
-    {
-      P[i].FlexStepGrp = (int) (TIMEBASE * get_random_number(P[i].ID));
-    }
+  for (i = 0; i < NumPart; i++) /*  start-up initialization */
+  {
+    P[i].FlexStepGrp = (int)(TIMEBASE * get_random_number(P[i].ID));
+  }
 #endif
 
-
-  for(i = 0; i < N_gas; i++)	/* initialize sph_properties */
+  for (i = 0; i < N_gas; i++) /* initialize sph_properties */
+  {
+    for (j = 0; j < 3; j++)
     {
-      for(j = 0; j < 3; j++)
-	{
-	  SphP[i].VelPred[j] = P[i].Vel[j];
-	  SphP[i].HydroAccel[j] = 0;
-	}
-
-      SphP[i].DtEntropy = 0;
-
-      if(RestartFlag == 0)
-	{
-	  SphP[i].Hsml = 0;
-	  SphP[i].Density = -1;
-	}
+      SphP[i].VelPred[j] = P[i].Vel[j];
+      SphP[i].HydroAccel[j] = 0;
     }
+
+    SphP[i].DtEntropy = 0;
+
+    if (RestartFlag == 0)
+    {
+      SphP[i].Hsml = 0;
+      SphP[i].Density = -1;
+    }
+  }
 
   ngb_treeallocate(MAX_NGB);
 
@@ -132,11 +129,11 @@ void init(void)
 
   All.NumForcesSinceLastDomainDecomp = 1 + All.TotNumPart * All.TreeDomainUpdateFrequency;
 
-  Flag_FullStep = 1;		/* to ensure that Peano-Hilber order is done */
+  Flag_FullStep = 1; /* to ensure that Peano-Hilber order is done */
 
-  domain_Decomposition();	/* do initial domain decomposition (gives equal numbers of particles) */
+  domain_Decomposition(); /* do initial domain decomposition (gives equal numbers of particles) */
 
-  ngb_treebuild();		/* will build tree */
+  ngb_treebuild(); /* will build tree */
 
   setup_smoothinglengths();
 
@@ -148,12 +145,11 @@ void init(void)
    * Once the density has been computed, we can convert thermal energy to entropy.
    */
 #ifndef ISOTHERM_EQS
-  if(header.flag_entropy_instead_u == 0)
-    for(i = 0; i < N_gas; i++)
+  if (header.flag_entropy_instead_u == 0)
+    for (i = 0; i < N_gas; i++)
       SphP[i].Entropy = GAMMA_MINUS1 * SphP[i].Entropy / pow(SphP[i].Density / a3, GAMMA_MINUS1);
 #endif
 }
-
 
 /*! This routine computes the mass content of the box and compares it to the
  *  specified value of Omega-matter.  If discrepant, the run is terminated.
@@ -163,31 +159,28 @@ void check_omega(void)
   double mass = 0, masstot, omega;
   int i;
 
-  for(i = 0; i < NumPart; i++)
+  for (i = 0; i < NumPart; i++)
     mass += P[i].Mass;
 
-  MPI_Allreduce(&mass, &masstot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&mass, &masstot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   omega =
-    masstot / (All.BoxSize * All.BoxSize * All.BoxSize) / (3 * All.Hubble * All.Hubble / (8 * M_PI * All.G));
+      masstot / (All.BoxSize * All.BoxSize * All.BoxSize) / (3 * All.Hubble * All.Hubble / (8 * M_PI * All.G));
 
-  if(fabs(omega - All.Omega0) > 1.0e-3)
+  if (fabs(omega - All.Omega0) > 1.0e-3)
+  {
+    if (ThisTask == 0)
     {
-      if(ThisTask == 0)
-	{
-	  printf("\n\nI've found something odd!\n");
-	  printf
-	    ("The mass content accounts only for Omega=%g,\nbut you specified Omega=%g in the parameterfile.\n",
-	     omega, All.Omega0);
-	  printf("\nI better stop.\n");
+      printf("\n\nI've found something odd!\n");
+      printf("The mass content accounts only for Omega=%g,\nbut you specified Omega=%g in the parameterfile.\n",
+             omega, All.Omega0);
+      printf("\nI better stop.\n");
 
-	  fflush(stdout);
-	}
-      endrun(1);
+      fflush(stdout);
     }
+    endrun(1);
+  }
 }
-
-
 
 /*! This function is used to find an initial smoothing length for each SPH
  *  particle. It guarantees that the number of neighbours will be between
@@ -199,35 +192,34 @@ void setup_smoothinglengths(void)
 {
   int i, no, p;
 
-  if(RestartFlag == 0)
+  if (RestartFlag == 0)
+  {
+
+    for (i = 0; i < N_gas; i++)
     {
+      no = Father[i];
 
-      for(i = 0; i < N_gas; i++)
-	{
-	  no = Father[i];
+      while (10 * All.DesNumNgb * P[i].Mass > Nodes[no].u.d.mass)
+      {
+        p = Nodes[no].u.d.father;
 
-	  while(10 * All.DesNumNgb * P[i].Mass > Nodes[no].u.d.mass)
-	    {
-	      p = Nodes[no].u.d.father;
+        if (p < 0)
+          break;
 
-	      if(p < 0)
-		break;
-
-	      no = p;
-	    }
+        no = p;
+      }
 #ifndef TWODIMS
-	  SphP[i].Hsml =
-	    pow(3.0 / (4 * M_PI) * All.DesNumNgb * P[i].Mass / Nodes[no].u.d.mass, 1.0 / 3) * Nodes[no].len;
+      SphP[i].Hsml =
+          pow(3.0 / (4 * M_PI) * All.DesNumNgb * P[i].Mass / Nodes[no].u.d.mass, 1.0 / 3) * Nodes[no].len;
 #else
-	  SphP[i].Hsml =
-	    pow(1.0 / (M_PI) * All.DesNumNgb * P[i].Mass / Nodes[no].u.d.mass, 1.0 / 2) * Nodes[no].len;
+      SphP[i].Hsml =
+          pow(1.0 / (M_PI)*All.DesNumNgb * P[i].Mass / Nodes[no].u.d.mass, 1.0 / 2) * Nodes[no].len;
 #endif
-	}
     }
+  }
 
   density();
 }
-
 
 /*! If the code is run in glass-making mode, this function populates the
  *  simulation box with a Poisson sample of particles.
@@ -241,27 +233,26 @@ void seed_glass(void)
   long long IDstart;
 
   All.TotNumPart = MAKEGLASS;
-  partmass = All.Omega0 * (3 * All.Hubble * All.Hubble / (8 * M_PI * All.G))
-    * (All.BoxSize * All.BoxSize * All.BoxSize) / All.TotNumPart;
+  partmass = All.Omega0 * (3 * All.Hubble * All.Hubble / (8 * M_PI * All.G)) * (All.BoxSize * All.BoxSize * All.BoxSize) / All.TotNumPart;
 
-  All.MaxPart = All.PartAllocFactor * (All.TotNumPart / NTask);	/* sets the maximum number of particles that may */
+  All.MaxPart = All.PartAllocFactor * (All.TotNumPart / NTask); /* sets the maximum number of particles that may */
 
   allocate_memory();
 
   header.npartTotal[1] = All.TotNumPart;
   header.mass[1] = partmass;
 
-  if(ThisTask == 0)
-    {
-      printf("\nGlass initialising\nPartMass= %g\n", partmass);
-      printf("TotNumPart= %d%09d\n\n",
-	     (int) (All.TotNumPart / 1000000000), (int) (All.TotNumPart % 1000000000));
-    }
+  if (ThisTask == 0)
+  {
+    printf("\nGlass initialising\nPartMass= %g\n", partmass);
+    printf("TotNumPart= %d%09d\n\n",
+           (int)(All.TotNumPart / 1000000000), (int)(All.TotNumPart % 1000000000));
+  }
 
   /* set the number of particles assigned locally to this task */
   n_for_this_task = All.TotNumPart / NTask;
 
-  if(ThisTask == NTask - 1)
+  if (ThisTask == NTask - 1)
     n_for_this_task = All.TotNumPart - (NTask - 1) * n_for_this_task;
 
   NumPart = 0;
@@ -276,21 +267,21 @@ void seed_glass(void)
 
   srand48(ThisTask);
 
-  for(i = 0; i < n_for_this_task; i++)
+  for (i = 0; i < n_for_this_task; i++)
+  {
+    for (k = 0; k < 3; k++)
     {
-      for(k = 0; k < 3; k++)
-	{
-	  drandom = drand48();
+      drandom = drand48();
 
-	  P[i].Pos[k] = LowerBound[k] + Range[k] * drandom;
-	  P[i].Vel[k] = 0;
-	}
-
-      P[i].Mass = partmass;
-      P[i].Type = 1;
-      P[i].ID = IDstart + i;
-
-      NumPart++;
+      P[i].Pos[k] = LowerBound[k] + Range[k] * drandom;
+      P[i].Vel[k] = 0;
     }
+
+    P[i].Mass = partmass;
+    P[i].Type = 1;
+    P[i].ID = IDstart + i;
+
+    NumPart++;
+  }
 }
 #endif

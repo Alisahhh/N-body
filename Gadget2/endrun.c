@@ -9,7 +9,6 @@
 #include "allvars.h"
 #include "proto.h"
 
-
 /*! \file endrun.c 
  *  \brief Termination of simulation
  *
@@ -24,20 +23,20 @@
  */
 void endrun(int ierr)
 {
-  if(ierr)
-    {
-      printf("task %d: endrun called with an error level of %d\n\n\n", ThisTask, ierr);
-      fflush(stdout);
+  if (ierr)
+  {
+    printf("task %d: endrun called with an error level of %d\n\n\n", ThisTask, ierr);
+    fflush(stdout);
 #ifdef DEBUG
-      terminate_processes();
-      raise(SIGABRT);
-      sleep(60);
+    terminate_processes();
+    raise(SIGABRT);
+    sleep(60);
 #else
-      MPI_Abort(MPI_COMM_WORLD, ierr);
+    MPI_Abort(MPI_COMM_WORLD, ierr);
 #endif
-      exit(0);
-    }
+    exit(0);
+  }
 
-  MPI_Finalize();
+  RDMA_Finalize();
   exit(0);
 }

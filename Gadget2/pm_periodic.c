@@ -99,7 +99,7 @@ void pm_init_periodic(void)
 
   to_slab_fac = PMGRID / All.BoxSize;
 
-  MPI_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 }
 
 
@@ -117,7 +117,7 @@ void pm_init_periodic_allocate(int dimprod)
   double bytes_tot = 0;
   size_t bytes;
 
-  MPI_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   /* allocate the memory to hold the FFT fields */
 

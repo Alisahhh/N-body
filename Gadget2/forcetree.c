@@ -684,7 +684,7 @@ void force_update_pseudoparticles(void)
 void force_exchange_pseudodata(void)
 {
   int i, no;
-  MPI_Status status;
+//   MPI_Status status;
   int level, sendTask, recvTask;
 
   for(i = DomainMyStart; i <= DomainMyLast; i++)
@@ -885,7 +885,7 @@ void force_flag_localnodes(void)
 void force_update_len(void)
 {
   int i, no;
-  MPI_Status status;
+//   MPI_Status status;
   int level, sendTask, recvTask;
 
   force_update_node_len_local();
@@ -2963,15 +2963,15 @@ void ewald_init(void)
 	    len = (EN + 1) * (EN + 1) * (EN + 1) - beg;
 
 #ifdef DOUBLEPRECISION
-	  MPI_Bcast(&fcorrx[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorry[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorrz[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&potcorr[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorrx[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorry[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorrz[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&potcorr[0][0][beg], len,  task, MPI_COMM_WORLD);
 #else
-	  MPI_Bcast(&fcorrx[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorry[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorrz[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&potcorr[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorrx[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorry[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&fcorrz[0][0][beg], len,  task, MPI_COMM_WORLD);
+	  RDMA_MakeAll(&potcorr[0][0][beg], len, task, MPI_COMM_WORLD);
 #endif
 	}
 

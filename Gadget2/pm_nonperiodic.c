@@ -82,8 +82,8 @@ void pm_init_regionsize(void)
 	  xmin[t][j] = P[i].Pos[j];
       }
 
-  MPI_Allreduce(xmin, All.Xmintot, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(xmax, All.Xmaxtot, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(xmin, All.Xmintot, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  RDMA_Allreduce(xmax, All.Xmaxtot, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
   for(j = 0; j < 2; j++)
     {
@@ -206,7 +206,7 @@ void pm_init_nonperiodic(void)
   for(i = 0; i < nslab_x; i++)
     slab_to_task_local[slabstart_x + i] = ThisTask;
 
-  MPI_Allreduce(slab_to_task_local, slab_to_task, GRID, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(slab_to_task_local, slab_to_task, GRID, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   slabs_per_task = malloc(NTask * sizeof(int));
   MPI_Allgather(&nslab_x, 1, MPI_INT, slabs_per_task, 1, MPI_INT, MPI_COMM_WORLD);
@@ -225,7 +225,7 @@ void pm_init_nonperiodic(void)
   meshmin_list = malloc(3 * NTask * sizeof(int));
   meshmax_list = malloc(3 * NTask * sizeof(int));
 
-  MPI_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   /* now allocate memory to hold the FFT fields */
 
@@ -268,7 +268,7 @@ void pm_init_nonperiodic_allocate(int dimprod)
   double bytes_tot = 0;
   size_t bytes;
 
-  MPI_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   if(!(rhogrid = (fftw_real *) malloc(bytes = fftsize * sizeof(fftw_real))))
     {
@@ -548,7 +548,7 @@ int pmforce_nonperiodic(int grnr)
     }
 
 
-  MPI_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if(flagsum > 0)
     {
       if(ThisTask == 0)
@@ -1053,7 +1053,7 @@ int pmpotential_nonperiodic(int grnr)
     }
 
 
-  MPI_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if(flagsum > 0) 
     {
       if(ThisTask == 0)
