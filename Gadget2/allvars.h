@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <gsl/gsl_rng.h>
+#include "include/mpi.hpp"
 #include "tags.h"
 
 #define  GADGETVERSION   "2.0"   /*!< code version string */
