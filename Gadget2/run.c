@@ -83,12 +83,12 @@ void run(void)
 	    }
 	}
 
-      MPI_Bcast(&stopflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      RDMA_Bcast(&stopflag, 1, R_TYPE_INT, 0);
 
       if(stopflag)
 	{
 	  restart(0);		/* write restart file */
-	  MPI_Barrier(MPI_COMM_WORLD);
+	  RDMA_Barrier();
 
 	  if(stopflag == 2 && ThisTask == 0)
 	    {
@@ -116,7 +116,7 @@ void run(void)
 	    stopflag = 0;
 	}
 
-      MPI_Bcast(&stopflag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      RDMA_Bcast(&stopflag, 1, R_TYPE_INT, 0);
 
       if(stopflag == 3)
 	{
@@ -162,7 +162,7 @@ void find_next_sync_point_and_drift(void)
     if(min > P[n].Ti_endstep)
       min = P[n].Ti_endstep;
 
-  MPI_Allreduce(&min, &min_glob, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  RDMA_Allreduce(&min, &min_glob, 1, R_TYPE_INT, R_OP_MIN);
 
   /* We check whether this is a full step where all particles are synchronized */
   flag = 1;
@@ -170,7 +170,7 @@ void find_next_sync_point_and_drift(void)
     if(P[n].Ti_endstep > min_glob)
       flag = 0;
 
-  MPI_Allreduce(&flag, &Flag_FullStep, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  RDMA_Allreduce(&flag, &Flag_FullStep, 1, R_TYPE_INT, R_OP_MIN);
 
 #ifdef PMGRID
   if(min_glob >= All.PM_Ti_endstep)
@@ -192,7 +192,7 @@ void find_next_sync_point_and_drift(void)
 
   /* note: NumForcesSinceLastDomainDecomp has type "long long" */
   temp = malloc(NTask * sizeof(int));
-  MPI_Allgather(&NumForceUpdate, 1, MPI_INT, temp, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&NumForceUpdate, 1, R_TYPE_INT, temp, 1, R_TYPE_INT);
   for(n = 0; n < NTask; n++)
     All.NumForcesSinceLastDomainDecomp += temp[n];
   free(temp);

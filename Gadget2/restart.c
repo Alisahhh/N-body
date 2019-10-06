@@ -96,7 +96,7 @@ void restart(int modus)
 
 	  if(modus > 0 && groupTask == 0)	/* read */
 	    {
-	      MPI_Bcast(&all_task0, sizeof(struct global_data_all_processes), MPI_BYTE, 0, MPI_COMM_WORLD);
+	      RDMA_Bcast(&all_task0, sizeof(struct global_data_all_processes), R_TYPE_BYTE, 0);
 	    }
 
 	  old_MaxPart = All.MaxPart;
@@ -275,11 +275,11 @@ void restart(int modus)
 	{
 	  if(modus > 0 && groupTask == 0)	/* read */
 	    {
-	      MPI_Bcast(&all_task0, sizeof(struct global_data_all_processes), MPI_BYTE, 0, MPI_COMM_WORLD);
+	      RDMA_Bcast(&all_task0, sizeof(struct global_data_all_processes), R_TYPE_BYTE, 0);
 	    }
 	}
 
-      MPI_Barrier(MPI_COMM_WORLD);
+      RDMA_Barrier();
     }
 }
 

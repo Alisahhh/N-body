@@ -83,7 +83,7 @@ void savepositions(int num)
    * MPI_Allreduce() to sum the total particle numbers 
    */
   temp = malloc(NTask * 6 * sizeof(int));
-  MPI_Allgather(n_type, 6, MPI_INT, temp, 6, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(n_type, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
   for(i = 0; i < 6; i++)
     {
       ntot_type_all[i] = 0;
@@ -111,7 +111,7 @@ void savepositions(int num)
     {
       if((filenr / All.NumFilesWrittenInParallel) == gr)	/* ok, it's this processor's turn */
 	write_file(buf, masterTask, lastTask);
-      MPI_Barrier(MPI_COMM_WORLD);
+      RDMA_Barrier();
     }
 
 
@@ -679,7 +679,6 @@ void write_file(char *fname, int writeTask, int lastTask)
   int blockmaxlen, ntot_type[6], nn[6];
   enum iofields blocknr;
   int blksize;
-  MPI_Status status;
   FILE *fd = 0;
 
 #ifdef HAVE_HDF5
@@ -702,18 +701,18 @@ void write_file(char *fname, int writeTask, int lastTask)
 
       for(task = writeTask + 1; task <= lastTask; task++)
 	{
-	  MPI_Recv(&nn[0], 6, MPI_INT, task, TAG_LOCALN, MPI_COMM_WORLD, &status);
+	  RDMA_Recv(&nn[0], 6, R_TYPE_INT, task);
 	  for(n = 0; n < 6; n++)
 	    ntot_type[n] += nn[n];
 	}
 
       for(task = writeTask + 1; task <= lastTask; task++)
-	MPI_Send(&ntot_type[0], 6, MPI_INT, task, TAG_N, MPI_COMM_WORLD);
+	RDMA_Send(&ntot_type[0], 6, R_TYPE_INT, task);
     }
   else
     {
-      MPI_Send(&n_type[0], 6, MPI_INT, writeTask, TAG_LOCALN, MPI_COMM_WORLD);
-      MPI_Recv(&ntot_type[0], 6, MPI_INT, writeTask, TAG_N, MPI_COMM_WORLD, &status);
+      RDMA_Send(&n_type[0], 6, R_TYPE_INT, writeTask);
+      RDMA_Recv(&ntot_type[0], 6, R_TYPE_INT, writeTask);
     }
 
 
@@ -893,11 +892,10 @@ void write_file(char *fname, int writeTask, int lastTask)
 
 			      for(p = writeTask; p <= lastTask; p++)
 				if(p != ThisTask)
-				  MPI_Send(&n_for_this_task, 1, MPI_INT, p, TAG_NFORTHISTASK, MPI_COMM_WORLD);
+				  RDMA_Send(&n_for_this_task, 1, R_TYPE_INT, p);
 			    }
 			  else
-			    MPI_Recv(&n_for_this_task, 1, MPI_INT, task, TAG_NFORTHISTASK, MPI_COMM_WORLD,
-				     &status);
+			    RDMA_Recv(&n_for_this_task, 1, R_TYPE_INT, task);
 
 			  while(n_for_this_task > 0)
 			    {
@@ -910,12 +908,10 @@ void write_file(char *fname, int writeTask, int lastTask)
 				fill_write_buffer(blocknr, &offset, pc, type);
 
 			      if(ThisTask == writeTask && task != writeTask)
-				MPI_Recv(CommBuffer, bytes_per_blockelement * pc, MPI_BYTE, task,
-					 TAG_PDATA, MPI_COMM_WORLD, &status);
+				RDMA_Recv(CommBuffer, bytes_per_blockelement * pc, R_TYPE_BYTE, task);
 
 			      if(ThisTask != writeTask && task == ThisTask)
-				MPI_Ssend(CommBuffer, bytes_per_blockelement * pc, MPI_BYTE, writeTask,
-					  TAG_PDATA, MPI_COMM_WORLD);
+				RDMA_Send(CommBuffer, bytes_per_blockelement * pc, R_TYPE_BYTE, writeTask);
 
 			      if(ThisTask == writeTask)
 				{

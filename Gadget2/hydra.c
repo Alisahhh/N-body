@@ -56,7 +56,6 @@ void hydro_force(void)
   double soundspeed_i;
   double tstart, tend, sumt, sumcomm;
   double timecomp = 0, timecommsumm = 0, timeimbalance = 0, sumimbalance;
-  MPI_Status status;
 
 #ifdef PERIODIC
   boxSize = All.BoxSize;
@@ -105,7 +104,7 @@ void hydro_force(void)
     }
 
   numlist = malloc(NTask * sizeof(int) * NTask);
-  MPI_Allgather(&NumSphUpdate, 1, MPI_INT, numlist, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&NumSphUpdate, 1, R_TYPE_INT, numlist, 1, R_TYPE_INT);
   for(i = 0, ntot = 0; i < NTask; i++)
     ntot += numlist[i];
   free(numlist);
@@ -177,7 +176,7 @@ void hydro_force(void)
 
       tstart = second();
 
-      MPI_Allgather(nsend_local, NTask, MPI_INT, nsend, NTask, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(nsend_local, NTask, R_TYPE_INT, nsend, NTask, R_TYPE_INT);
 
       tend = second();
       timeimbalance += timediff(tstart, tend);
@@ -212,10 +211,10 @@ void hydro_force(void)
 		    {
 		      /* get the particles */
 		      MPI_Sendrecv(&HydroDataIn[noffset[recvTask]],
-				   nsend_local[recvTask] * sizeof(struct hydrodata_in), MPI_BYTE,
+				   nsend_local[recvTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
 				   recvTask, TAG_HYDRO_A,
 				   &HydroDataGet[nbuffer[ThisTask]],
-				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_in), MPI_BYTE,
+				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
 				   recvTask, TAG_HYDRO_A, MPI_COMM_WORLD, &status);
 		    }
 		}
@@ -236,7 +235,7 @@ void hydro_force(void)
 
 	  /* do a block to measure imbalance */
 	  tstart = second();
-	  MPI_Barrier(MPI_COMM_WORLD);
+	  RDMA_Barrier();
 	  tend = second();
 	  timeimbalance += timediff(tstart, tend);
 
@@ -266,10 +265,10 @@ void hydro_force(void)
 		      /* send the results */
 		      MPI_Sendrecv(&HydroDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_out),
-				   MPI_BYTE, recvTask, TAG_HYDRO_B,
+				   R_TYPE_BYTE, recvTask, TAG_HYDRO_B,
 				   &HydroDataPartialResult[noffset[recvTask]],
 				   nsend_local[recvTask] * sizeof(struct hydrodata_out),
-				   MPI_BYTE, recvTask, TAG_HYDRO_B, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask, TAG_HYDRO_B, MPI_COMM_WORLD, &status);
 
 		      /* add the result to the particles */
 		      for(j = 0; j < nsend_local[recvTask]; j++)
@@ -298,7 +297,7 @@ void hydro_force(void)
 	  level = ngrp - 1;
 	}
 
-      MPI_Allgather(&ndone, 1, MPI_INT, ndonelist, 1, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(&ndone, 1, R_TYPE_INT, ndonelist, 1, R_TYPE_INT);
       for(j = 0; j < NTask; j++)
 	ntotleft -= ndonelist[j];
     }
@@ -333,9 +332,9 @@ void hydro_force(void)
 
   /* collect some timing information */
 
-  MPI_Reduce(&timecomp, &sumt, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timecommsumm, &sumcomm, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timeimbalance, &sumimbalance, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  RDMA_Reduce(&timecomp, &sumt, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&timecommsumm, &sumcomm, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&timeimbalance, &sumimbalance, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
 
   if(ThisTask == 0)
     {

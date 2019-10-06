@@ -115,16 +115,13 @@ void compute_global_quantities_of_system(void)
 
 
   /* some the stuff over all processors */
-  MPI_Reduce(&sys.MassComp[0], &SysState.MassComp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&sys.EnergyPotComp[0], &SysState.EnergyPotComp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&sys.EnergyIntComp[0], &SysState.EnergyIntComp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&sys.EnergyKinComp[0], &SysState.EnergyKinComp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&sys.MomentumComp[0][0], &SysState.MomentumComp[0][0], 6 * 4, MPI_DOUBLE, MPI_SUM, 0,
-	     MPI_COMM_WORLD);
-  MPI_Reduce(&sys.AngMomentumComp[0][0], &SysState.AngMomentumComp[0][0], 6 * 4, MPI_DOUBLE, MPI_SUM, 0,
-	     MPI_COMM_WORLD);
-  MPI_Reduce(&sys.CenterOfMassComp[0][0], &SysState.CenterOfMassComp[0][0], 6 * 4, MPI_DOUBLE, MPI_SUM, 0,
-	     MPI_COMM_WORLD);
+  RDMA_Reduce(&sys.MassComp[0], &SysState.MassComp[0], 6, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.EnergyPotComp[0], &SysState.EnergyPotComp[0], 6, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.EnergyIntComp[0], &SysState.EnergyIntComp[0], 6, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.EnergyKinComp[0], &SysState.EnergyKinComp[0], 6, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.MomentumComp[0][0], &SysState.MomentumComp[0][0], 6 * 4, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.AngMomentumComp[0][0], &SysState.AngMomentumComp[0][0], 6 * 4, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&sys.CenterOfMassComp[0][0], &SysState.CenterOfMassComp[0][0], 6 * 4, R_TYPE_DOUBLE, R_OP_SUM, 0);
 
 
   if(ThisTask == 0)
@@ -194,5 +191,5 @@ void compute_global_quantities_of_system(void)
     }
 
   /* give everyone the result, maybe the want to do something with it */
-  MPI_Bcast(&SysState, sizeof(struct state_of_system), MPI_BYTE, 0, MPI_COMM_WORLD);
+  RDMA_Bcast(&SysState, sizeof(struct state_of_system), R_TYPE_BYTE, 0);
 }

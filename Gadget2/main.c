@@ -23,9 +23,9 @@ int main(int argc, char **argv)
 {
   double t0, t1;
 
-  MPI_Init(&argc, &argv);
-  MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
-  MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+  RDMA_Init(&argc, &argv);
+  &ThisTask = RDMA_Rank();
+  &NTask = RDMA_Size();
 
   if(NTask <= 1)
     {
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 
   run();			/* main simulation loop */
 
-  MPI_Finalize();		/* clean up & finalize MPI */
+  RDMA_Finalize();		/* clean up & finalize MPI */
 
   return 0;
 }

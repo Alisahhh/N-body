@@ -62,7 +62,6 @@ void density(void)
   double dt_entr, tstart, tend, tstart_ngb = 0, tend_ngb = 0;
   double sumt, sumcomm, timengb, sumtimengb;
   double timecomp = 0, timeimbalance = 0, timecommsumm = 0, sumimbalance;
-  MPI_Status status;
 
 #ifdef PERIODIC
   boxSize = All.BoxSize;
@@ -97,7 +96,7 @@ void density(void)
     }
 
   numlist = malloc(NTask * sizeof(int) * NTask);
-  MPI_Allgather(&NumSphUpdate, 1, MPI_INT, numlist, 1, MPI_INT, MPI_COMM_WORLD);
+	RDMA_Allgather(&NumSphUpdate, 1, R_TYPE_INT, numlist, 1, R_TYPE_INT);
   for(i = 0, ntot = 0; i < NTask; i++)
     ntot += numlist[i];
   free(numlist);
@@ -157,7 +156,7 @@ void density(void)
 
 	  tstart = second();
 
-	  MPI_Allgather(nsend_local, NTask, MPI_INT, nsend, NTask, MPI_INT, MPI_COMM_WORLD);
+		RDMA_Allgather(nsend_local, NTask, R_TYPE_INT, nsend, NTask, R_TYPE_INT);
 
 	  tend = second();
 	  timeimbalance += timediff(tstart, tend);
@@ -191,11 +190,11 @@ void density(void)
 			{
 			  /* get the particles */
 			  MPI_Sendrecv(&DensDataIn[noffset[recvTask]],
-				       nsend_local[recvTask] * sizeof(struct densdata_in), MPI_BYTE,
+				       nsend_local[recvTask] * sizeof(struct densdata_in), R_TYPE_BYTE,
 				       recvTask, TAG_DENS_A,
 				       &DensDataGet[nbuffer[ThisTask]],
 				       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_in),
-				       MPI_BYTE, recvTask, TAG_DENS_A, MPI_COMM_WORLD, &status);
+				       R_TYPE_BYTE, recvTask, TAG_DENS_A, MPI_COMM_WORLD, &status);
 			}
 		    }
 
@@ -215,7 +214,7 @@ void density(void)
 
 	      /* do a block to explicitly measure imbalance */
 	      tstart = second();
-	      MPI_Barrier(MPI_COMM_WORLD);
+	      RDMA_Barrier();
 	      tend = second();
 	      timeimbalance += timediff(tstart, tend);
 
@@ -245,10 +244,10 @@ void density(void)
 			  /* send the results */
 			  MPI_Sendrecv(&DensDataResult[nbuffer[ThisTask]],
 				       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
-				       MPI_BYTE, recvTask, TAG_DENS_B,
+				       R_TYPE_BYTE, recvTask, TAG_DENS_B,
 				       &DensDataPartialResult[noffset[recvTask]],
 				       nsend_local[recvTask] * sizeof(struct densdata_out),
-				       MPI_BYTE, recvTask, TAG_DENS_B, MPI_COMM_WORLD, &status);
+				       R_TYPE_BYTE, recvTask, TAG_DENS_B, MPI_COMM_WORLD, &status);
 
 			  /* add the result to the particles */
 			  for(j = 0; j < nsend_local[recvTask]; j++)
@@ -279,7 +278,7 @@ void density(void)
 	      level = ngrp - 1;
 	    }
 
-	  MPI_Allgather(&ndone, 1, MPI_INT, ndonelist, 1, MPI_INT, MPI_COMM_WORLD);
+	  RDMA_Allgather(&ndone, 1, R_TYPE_INT, ndonelist, 1, R_TYPE_INT);
 	  for(j = 0; j < NTask; j++)
 	    ntotleft -= ndonelist[j];
 	}
@@ -394,7 +393,7 @@ void density(void)
 
 
       numlist = malloc(NTask * sizeof(int) * NTask);
-      MPI_Allgather(&npleft, 1, MPI_INT, numlist, 1, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(&npleft, 1, R_TYPE_INT, numlist, 1, R_TYPE_INT);
       for(i = 0, ntot = 0; i < NTask; i++)
 	ntot += numlist[i];
       free(numlist);
@@ -444,10 +443,10 @@ void density(void)
   else
     timengb = 0;
 
-  MPI_Reduce(&timengb, &sumtimengb, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timecomp, &sumt, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timecommsumm, &sumcomm, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timeimbalance, &sumimbalance, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  RDMA_Reduce(&timengb, &sumtimengb, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&timecomp, &sumt, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&timecommsumm, &sumcomm, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
+  RDMA_Reduce(&timeimbalance, &sumimbalance, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
 
   if(ThisTask == 0)
     {

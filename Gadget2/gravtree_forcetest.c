@@ -36,7 +36,6 @@ void gravity_forcetest(void)
   int k, nexport;
   int level, sendTask, recvTask;
   double fac1;
-  MPI_Status status;
 #endif
   double costtotal, *costtreelist;
   double maxt, sumt, *timetreelist;
@@ -65,7 +64,7 @@ void gravity_forcetest(void)
 
   /* NumForceUpdate is the number of particles on this processor that want a force update */
 
-  MPI_Allreduce(&NumForceUpdate, &ntot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&NumForceUpdate, &ntot, 1, R_TYPE_INT, R_OP_SUM);
 
   costtotal = 0;
 
@@ -129,7 +128,7 @@ void gravity_forcetest(void)
       for(j = 1, noffset[0] = 0; j < NTask; j++)
 	noffset[j] = noffset[j - 1] + nsend_local[j - 1];
 
-      MPI_Allgather(nsend_local, NTask, MPI_INT, nsend, NTask, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather_exp(nsend_local, NTask, R_TYPE_INT, nsend, NTask, R_TYPE_INT, MPI_COMM_WORLD);
 
       /* now do the particles that need to be exported */
 
@@ -158,10 +157,10 @@ void gravity_forcetest(void)
 		    {
 		      /* get the particles */
 		      MPI_Sendrecv(&GravDataIn[noffset[recvTask]],
-				   nsend_local[recvTask] * sizeof(struct gravdata_in), MPI_BYTE,
+				   nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
 				   recvTask, TAG_DIRECT_A,
 				   &GravDataGet[nbuffer[ThisTask]],
-				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in), MPI_BYTE,
+				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
 				   recvTask, TAG_DIRECT_A, MPI_COMM_WORLD, &status);
 		    }
 		}
@@ -204,10 +203,10 @@ void gravity_forcetest(void)
 		      /* send the results */
 		      MPI_Sendrecv(&GravDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-				   MPI_BYTE, recvTask, TAG_DIRECT_B,
+				   R_TYPE_BYTE, recvTask, TAG_DIRECT_B,
 				   &GravDataOut[noffset[recvTask]],
 				   nsend_local[recvTask] * sizeof(struct gravdata_in),
-				   MPI_BYTE, recvTask, TAG_DIRECT_B, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask, TAG_DIRECT_B, MPI_COMM_WORLD, &status);
 
 		      /* add the result to the particles */
 		      for(j = 0; j < nsend_local[recvTask]; j++)
@@ -228,7 +227,7 @@ void gravity_forcetest(void)
 	  level = ngrp - 1;
 	}
 
-      MPI_Allreduce(&ndone, &ndonetot, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+      RDMA_Allreduce(&ndone, &ndonetot, 1, R_TYPE_INT, R_OP_SUM);
 
       ntotleft -= ndonetot;
     }
@@ -310,7 +309,7 @@ void gravity_forcetest(void)
 	      }
 	  fclose(FdForceTest);
 	}
-      MPI_Barrier(MPI_COMM_WORLD);
+      RDMA_Barrier();
     }
 
   for(i = 0; i < NumPart; i++)
@@ -324,8 +323,8 @@ void gravity_forcetest(void)
   timetreelist = malloc(sizeof(double) * NTask);
   costtreelist = malloc(sizeof(double) * NTask);
 
-  MPI_Gather(&costtotal, 1, MPI_DOUBLE, costtreelist, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  MPI_Gather(&timetree, 1, MPI_DOUBLE, timetreelist, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  RDMA_Gather(&costtotal, 1, R_TYPE_DOUBLE, costtreelist, 1, R_TYPE_DOUBLE, 0);
+  RDMA_Gather(&timetree, 1, R_TYPE_DOUBLE, timetreelist, 1, R_TYPE_DOUBLE, 0);
 
   if(ThisTask == 0)
     {

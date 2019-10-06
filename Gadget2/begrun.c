@@ -675,16 +675,16 @@ void read_parameter_file(char *fname)
 	All.OutputListLength = 0;
     }
 
-  MPI_Bcast(&errorFlag, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  RDMA_Bcast(&errorFlag, 1, R_TYPE_INT, 0);
 
   if(errorFlag)
     {
-      MPI_Finalize();
+      RDMA_Finalize();
       exit(0);
     }
 
   /* now communicate the relevant parameters to the other processes */
-  MPI_Bcast(&All, sizeof(struct global_data_all_processes), MPI_BYTE, 0, MPI_COMM_WORLD);
+  RDMA_Bcast(&All, sizeof(struct global_data_all_processes), R_TYPE_BYTE, 0);
 
 
   if(All.NumFilesWrittenInParallel < 1)

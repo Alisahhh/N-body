@@ -68,7 +68,7 @@ void read_ic(char *fname)
 	{
 	  if(ThisTask == (groupMaster + gr))	/* ok, it's this processor's turn */
 	    read_file(buf, ThisTask, ThisTask);
-	  MPI_Barrier(MPI_COMM_WORLD);
+	  RDMA_Barrier();
 	}
 
       rest_files -= NTask;
@@ -100,7 +100,7 @@ void read_ic(char *fname)
 	{
 	  if((filenr / All.NumFilesWrittenInParallel) == gr)	/* ok, it's this processor's turn */
 	    read_file(buf, masterTask, lastTask);
-	  MPI_Barrier(MPI_COMM_WORLD);
+	  RDMA_Barrier();
 	}
     }
 
@@ -147,7 +147,7 @@ void read_ic(char *fname)
   for(i = 0; i < N_gas; i++)
     SphP[i].Entropy = dmax(All.MinEgySpec, SphP[i].Entropy);
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  RDMA_Barrier();
 
   if(ThisTask == 0)
     {
@@ -248,7 +248,6 @@ void read_file(char *fname, int readTask, int lastTask)
   int blockmaxlen;
   int i, n_in_file, n_for_this_task, ntask, pc, offset = 0, task;
   int blksize1, blksize2;
-  MPI_Status status;
   FILE *fd = 0;
   int nall;
   int type;
@@ -319,10 +318,10 @@ void read_file(char *fname, int readTask, int lastTask)
 #endif
 
       for(task = readTask + 1; task <= lastTask; task++)
-	MPI_Ssend(&header, sizeof(header), MPI_BYTE, task, TAG_HEADER, MPI_COMM_WORLD);
+	RDMA_Send(&header, sizeof(header), R_TYPE_BYTE, task);
     }
   else
-    MPI_Recv(&header, sizeof(header), MPI_BYTE, readTask, TAG_HEADER, MPI_COMM_WORLD, &status);
+    RDMA_Recv(&header, sizeof(header), R_TYPE_BYTE, readTask);
 
 
   if(All.TotNumPart == 0)
@@ -538,12 +537,10 @@ void read_file(char *fname, int readTask, int lastTask)
 				}
 
 			      if(ThisTask == readTask && task != readTask)
-				MPI_Ssend(CommBuffer, bytes_per_blockelement * pc, MPI_BYTE, task, TAG_PDATA,
-					  MPI_COMM_WORLD);
+				RDMA_Send(CommBuffer, bytes_per_blockelement * pc, R_TYPE_BYTE, task);
 
 			      if(ThisTask != readTask && task == ThisTask)
-				MPI_Recv(CommBuffer, bytes_per_blockelement * pc, MPI_BYTE, readTask,
-					 TAG_PDATA, MPI_COMM_WORLD, &status);
+				RDMA_Recv(CommBuffer, bytes_per_blockelement * pc, R_TYPE_BYTE, readTask);
 
 			      if(ThisTask == task)
 				{
@@ -667,7 +664,7 @@ int find_files(char *fname)
 	}
     }
 
-  MPI_Bcast(&header, sizeof(header), MPI_BYTE, 0, MPI_COMM_WORLD);
+  RDMA_Bcast(&header, sizeof(header), R_TYPE_BYTE, 0);
 
   if(header.num_files > 0)
     return header.num_files;
@@ -700,7 +697,7 @@ int find_files(char *fname)
 	}
     }
 
-  MPI_Bcast(&header, sizeof(header), MPI_BYTE, 0, MPI_COMM_WORLD);
+  RDMA_Bcast(&header, sizeof(header), R_TYPE_BYTE, 0);
 
   if(header.num_files > 0)
     return header.num_files;

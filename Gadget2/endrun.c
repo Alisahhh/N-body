@@ -38,6 +38,6 @@ void endrun(int ierr)
       exit(0);
     }
 
-  MPI_Finalize();
+  RDMA_Finalize();
   exit(0);
 }

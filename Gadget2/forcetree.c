@@ -684,7 +684,6 @@ void force_update_pseudoparticles(void)
 void force_exchange_pseudodata(void)
 {
   int i, no;
-  MPI_Status status;
   int level, sendTask, recvTask;
 
   for(i = DomainMyStart; i <= DomainMyLast; i++)
@@ -718,10 +717,10 @@ void force_exchange_pseudodata(void)
       if(recvTask < NTask)
 	MPI_Sendrecv(&DomainMoment[DomainStartList[sendTask]],
 		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(struct DomainNODE),
-		     MPI_BYTE, recvTask, TAG_DMOM,
+		     R_TYPE_BYTE, recvTask, TAG_DMOM,
 		     &DomainMoment[DomainStartList[recvTask]],
 		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(struct DomainNODE),
-		     MPI_BYTE, recvTask, TAG_DMOM, MPI_COMM_WORLD, &status);
+		     R_TYPE_BYTE, recvTask, TAG_DMOM, MPI_COMM_WORLD, &status);
     }
 
 }
@@ -885,7 +884,6 @@ void force_flag_localnodes(void)
 void force_update_len(void)
 {
   int i, no;
-  MPI_Status status;
   int level, sendTask, recvTask;
 
   force_update_node_len_local();
@@ -906,10 +904,10 @@ void force_update_len(void)
       if(recvTask < NTask)
 	MPI_Sendrecv(&DomainTreeNodeLen[DomainStartList[sendTask]],
 		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
-		     MPI_BYTE, recvTask, TAG_NODELEN,
+		     R_TYPE_BYTE, recvTask, TAG_NODELEN,
 		     &DomainTreeNodeLen[DomainStartList[recvTask]],
 		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
-		     MPI_BYTE, recvTask, TAG_NODELEN, MPI_COMM_WORLD, &status);
+		     R_TYPE_BYTE, recvTask, TAG_NODELEN, MPI_COMM_WORLD, &status);
     }
 
   /* Finally, we update the top-level tree. */
@@ -1014,7 +1012,6 @@ void force_update_node_len_toptree(void)
 void force_update_hmax(void)
 {
   int i, no;
-  MPI_Status status;
   int level, sendTask, recvTask;
 
   force_update_node_hmax_local();
@@ -1036,10 +1033,10 @@ void force_update_hmax(void)
       if(recvTask < NTask)
 	MPI_Sendrecv(&DomainHmax[DomainStartList[sendTask]],
 		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
-		     MPI_BYTE, recvTask, TAG_HMAX,
+		     R_TYPE_BYTE, recvTask, TAG_HMAX,
 		     &DomainHmax[DomainStartList[recvTask]],
 		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
-		     MPI_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
+		     R_TYPE_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
     }
 
 
@@ -2963,15 +2960,15 @@ void ewald_init(void)
 	    len = (EN + 1) * (EN + 1) * (EN + 1) - beg;
 
 #ifdef DOUBLEPRECISION
-	  MPI_Bcast(&fcorrx[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorry[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorrz[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&potcorr[0][0][beg], len, MPI_DOUBLE, task, MPI_COMM_WORLD);
+	  RDMA_Bcast(&fcorrx[0][0][beg], len, R_TYPE_DOUBLE, task);
+	  RDMA_Bcast(&fcorry[0][0][beg], len, R_TYPE_DOUBLE, task);
+	  RDMA_Bcast(&fcorrz[0][0][beg], len, R_TYPE_DOUBLE, task);
+	  RDMA_Bcast(&potcorr[0][0][beg], len, R_TYPE_DOUBLE, task);
 #else
-	  MPI_Bcast(&fcorrx[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorry[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&fcorrz[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
-	  MPI_Bcast(&potcorr[0][0][beg], len, MPI_FLOAT, task, MPI_COMM_WORLD);
+	  RDMA_Bcast(&fcorrx[0][0][beg], len, MPI_FLOAT, task);
+	  RDMA_Bcast(&fcorry[0][0][beg], len, MPI_FLOAT, task);
+	  RDMA_Bcast(&fcorrz[0][0][beg], len, MPI_FLOAT, task);
+	  RDMA_Bcast(&potcorr[0][0][beg], len, MPI_FLOAT, task);
 #endif
 	}
 

@@ -166,7 +166,7 @@ void check_omega(void)
   for(i = 0; i < NumPart; i++)
     mass += P[i].Mass;
 
-  MPI_Allreduce(&mass, &masstot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&mass, &masstot, 1, R_TYPE_DOUBLE, R_OP_SUM);
 
   omega =
     masstot / (All.BoxSize * All.BoxSize * All.BoxSize) / (3 * All.Hubble * All.Hubble / (8 * M_PI * All.G));

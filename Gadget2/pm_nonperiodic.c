@@ -82,8 +82,8 @@ void pm_init_regionsize(void)
 	  xmin[t][j] = P[i].Pos[j];
       }
 
-  MPI_Allreduce(xmin, All.Xmintot, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(xmax, All.Xmaxtot, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(xmin, All.Xmintot, 6, R_TYPE_DOUBLE, R_OP_MIN);
+  RDMA_Allreduce(xmax, All.Xmaxtot, 6, R_TYPE_DOUBLE, R_OP_MAX);
 
   for(j = 0; j < 2; j++)
     {
@@ -206,10 +206,10 @@ void pm_init_nonperiodic(void)
   for(i = 0; i < nslab_x; i++)
     slab_to_task_local[slabstart_x + i] = ThisTask;
 
-  MPI_Allreduce(slab_to_task_local, slab_to_task, GRID, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(slab_to_task_local, slab_to_task, GRID, R_TYPE_INT, R_OP_SUM);
 
   slabs_per_task = malloc(NTask * sizeof(int));
-  MPI_Allgather(&nslab_x, 1, MPI_INT, slabs_per_task, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&nslab_x, 1, R_TYPE_INT, slabs_per_task, 1, R_TYPE_INT);
 
 #ifndef PERIODIC
   if(ThisTask == 0)
@@ -220,12 +220,12 @@ void pm_init_nonperiodic(void)
 #endif
 
   first_slab_of_task = malloc(NTask * sizeof(int));
-  MPI_Allgather(&slabstart_x, 1, MPI_INT, first_slab_of_task, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&slabstart_x, 1, R_TYPE_INT, first_slab_of_task, 1, R_TYPE_INT);
 
   meshmin_list = malloc(3 * NTask * sizeof(int));
   meshmax_list = malloc(3 * NTask * sizeof(int));
 
-  MPI_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&fftsize, &maxfftsize, 1, R_TYPE_INT, R_OP_MAX);
 
   /* now allocate memory to hold the FFT fields */
 
@@ -268,7 +268,7 @@ void pm_init_nonperiodic_allocate(int dimprod)
   double bytes_tot = 0;
   size_t bytes;
 
-  MPI_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&dimprod, &dimprodmax, 1, R_TYPE_INT, R_OP_MAX);
 
   if(!(rhogrid = (fftw_real *) malloc(bytes = fftsize * sizeof(fftw_real))))
     {
@@ -485,7 +485,6 @@ int pmforce_nonperiodic(int grnr)
   int slab_xx, slab_yy, slab_zz;
   int meshmin[3], meshmax[3], sendmin, sendmax, recvmin, recvmax;
   int dimx, dimy, dimz, recv_dimx, recv_dimy, recv_dimz;
-  MPI_Status status;
 
   if(ThisTask == 0)
     printf("Starting non-periodic PM calculation (grid=%d).\n", grnr);
@@ -548,7 +547,7 @@ int pmforce_nonperiodic(int grnr)
     }
 
 
-  MPI_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&flag, &flagsum, 1, R_TYPE_INT, R_OP_SUM);
   if(flagsum > 0)
     {
       if(ThisTask == 0)
@@ -559,8 +558,8 @@ int pmforce_nonperiodic(int grnr)
       return 1;			/* error - need to return because particle were outside allowed range */
     }
 
-  MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+  RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
 
   dimx = meshmax[0] - meshmin[0] + 2;
   dimy = meshmax[1] - meshmin[1] + 2;
@@ -656,9 +655,9 @@ int pmforce_nonperiodic(int grnr)
 	      if(level > 0)
 		{
 		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE, recvTask,
+			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
 			       TAG_NONPERIOD_A, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_NONPERIOD_A, MPI_COMM_WORLD, &status);
 		}
 	      else
@@ -765,8 +764,8 @@ int pmforce_nonperiodic(int grnr)
 		}
 	}
 
-      MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-      MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+      RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
     }
 #endif
 
@@ -854,9 +853,9 @@ int pmforce_nonperiodic(int grnr)
 		{
 		  MPI_Sendrecv(forcegrid,
 			       (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-			       MPI_BYTE, recvTask, TAG_NONPERIOD_B,
+			       R_TYPE_BYTE, recvTask, TAG_NONPERIOD_B,
 			       workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-			       (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_NONPERIOD_B, MPI_COMM_WORLD, &status);
 		}
 	      else
@@ -991,8 +990,6 @@ int pmpotential_nonperiodic(int grnr)
   int slab_xx, slab_yy, slab_zz;
   int meshmin[3], meshmax[3], sendmin, sendmax, recvmin, recvmax;
   int dimx, dimy, dimz, recv_dimx, recv_dimy, recv_dimz;
-  MPI_Status status;
-
 
   if(ThisTask == 0)
     printf("Starting non-periodic PM-potential calculation.\n");
@@ -1053,7 +1050,7 @@ int pmpotential_nonperiodic(int grnr)
     }
 
 
-  MPI_Allreduce(&flag, &flagsum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&flag, &flagsum, 1, R_TYPE_INT, R_OP_SUM);
   if(flagsum > 0) 
     {
       if(ThisTask == 0)
@@ -1066,8 +1063,8 @@ int pmpotential_nonperiodic(int grnr)
 
 
 
-  MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+  RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
 
   dimx = meshmax[0] - meshmin[0] + 2;
   dimy = meshmax[1] - meshmin[1] + 2;
@@ -1163,9 +1160,9 @@ int pmpotential_nonperiodic(int grnr)
 	      if(level > 0)
 		{
 		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE, recvTask,
+			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
 			       TAG_NONPERIOD_C, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_NONPERIOD_C, MPI_COMM_WORLD, &status);
 		}
 	      else
@@ -1272,8 +1269,8 @@ int pmpotential_nonperiodic(int grnr)
 		}
 	}
 
-      MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-      MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+      RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
     }
 #endif
 
@@ -1361,9 +1358,9 @@ int pmpotential_nonperiodic(int grnr)
 		{
 		  MPI_Sendrecv(forcegrid,
 			       (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-			       MPI_BYTE, recvTask, TAG_NONPERIOD_D,
+			       R_TYPE_BYTE, recvTask, TAG_NONPERIOD_D,
 			       workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-			       (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_NONPERIOD_D, MPI_COMM_WORLD, &status);
 		}
 	      else

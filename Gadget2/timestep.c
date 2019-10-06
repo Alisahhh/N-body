@@ -103,8 +103,8 @@ void advance_and_find_timesteps(void)
 	dispmax = disp;
     }
 
-  MPI_Allreduce(&dispmax, &globmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&disp2sum, &globdisp2sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(&dispmax, &globmax, 1, R_TYPE_DOUBLE, R_OP_MAX);
+  RDMA_Allreduce(&disp2sum, &globdisp2sum, 1, R_TYPE_DOUBLE, R_OP_SUM);
 
   dmean = pow(P[0].Mass / (All.Omega0 * 3 * All.Hubble * All.Hubble / (8 * M_PI * All.G)), 1.0 / 3);
 
@@ -159,7 +159,7 @@ void advance_and_find_timesteps(void)
     }
 
   ti_step = All.PresentMinStep;
-  MPI_Allreduce(&ti_step, &All.PresentMinStep, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  RDMA_Allreduce(&ti_step, &All.PresentMinStep, 1, R_TYPE_INT, R_OP_MIN);
 
   if(dt_displacement < All.MaxSizeTimestep)
     ti_step = (int) (dt_displacement / All.Timebase_interval);
@@ -590,11 +590,11 @@ void find_dt_displacement_constraint(double hfac /*!<  should be  a^2*H(a)  */ )
 	  count[P[i].Type]++;
 	}
 
-      MPI_Allreduce(v, v_sum, 6, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      MPI_Allreduce(mim, min_mass, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+      RDMA_Allreduce(v, v_sum, 6, R_TYPE_DOUBLE, R_OP_SUM);
+      RDMA_Allreduce(mim, min_mass, 6, R_TYPE_DOUBLE, R_OP_MIN);
 
       temp = malloc(NTask * 6 * sizeof(int));
-      MPI_Allgather(count, 6, MPI_INT, temp, 6, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(count, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
       for(i = 0; i < 6; i++)
 	{
 	  count_sum[i] = 0;

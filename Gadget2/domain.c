@@ -102,8 +102,8 @@ void domain_Decomposition(void)
       list_loadsph = malloc(sizeof(int) * NTask);
       list_work = malloc(sizeof(double) * NTask);
 
-      MPI_Allgather(&NumPart, 1, MPI_INT, list_NumPart, 1, MPI_INT, MPI_COMM_WORLD);
-      MPI_Allgather(&N_gas, 1, MPI_INT, list_N_gas, 1, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(&NumPart, 1, R_TYPE_INT, list_NumPart, 1, R_TYPE_INT);
+      RDMA_Allgather(&N_gas, 1, R_TYPE_INT, list_N_gas, 1, R_TYPE_INT);
 
       maxload = All.MaxPart * REDUC_FAC;
       maxloadsph = All.MaxPartSph * REDUC_FAC;
@@ -169,7 +169,7 @@ void domain_decompose(void)
    * MPI_Allreduce() to sum the total particle numbers 
    */
   temp = malloc(NTask * 6 * sizeof(int));
-  MPI_Allgather(NtypeLocal, 6, MPI_INT, temp, 6, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(NtypeLocal, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
   for(i = 0; i < 6; i++)
     {
       Ntype[i] = 0;
@@ -595,7 +595,6 @@ void domain_findExchangeNumbers(int task, int partner, int sphflag, int *send, i
 void domain_exchangeParticles(int partner, int sphflag, int send_count, int recv_count)
 {
   int i, no, n, count, rep;
-  MPI_Status status;
 
   for(n = 0, count = 0; count < send_count && n < NumPart; n++)
     {
@@ -664,15 +663,12 @@ void domain_exchangeParticles(int partner, int sphflag, int send_count, int recv
 	{
 	  if(send_count > 0)
 	    {
-	      MPI_Ssend(&DomainPartBuf[0], send_count * sizeof(struct particle_data), MPI_BYTE, partner,
-			TAG_PDATA, MPI_COMM_WORLD);
+	      RDMA_Send(&DomainPartBuf[0], send_count * sizeof(struct particle_data), R_TYPE_BYTE, partner);
 
-	      MPI_Ssend(&DomainKeyBuf[0], send_count * sizeof(peanokey), MPI_BYTE, partner, TAG_KEY,
-			MPI_COMM_WORLD);
+	      RDMA_Send(&DomainKeyBuf[0], send_count * sizeof(peanokey), R_TYPE_BYTE, partner);
 
 	      if(sphflag)
-		MPI_Ssend(&DomainSphBuf[0], send_count * sizeof(struct sph_particle_data), MPI_BYTE, partner,
-			  TAG_SPHDATA, MPI_COMM_WORLD);
+		RDMA_Send(&DomainSphBuf[0], send_count * sizeof(struct sph_particle_data), R_TYPE_BYTE, partner);
 	    }
 	}
 
@@ -699,21 +695,16 @@ void domain_exchangeParticles(int partner, int sphflag, int send_count, int recv
 			}
 		    }
 
-		  MPI_Recv(&P[N_gas], recv_count * sizeof(struct particle_data), MPI_BYTE, partner, TAG_PDATA,
-			   MPI_COMM_WORLD, &status);
-		  MPI_Recv(&Key[N_gas], recv_count * sizeof(peanokey), MPI_BYTE, partner, TAG_KEY,
-			   MPI_COMM_WORLD, &status);
-		  MPI_Recv(&SphP[N_gas], recv_count * sizeof(struct sph_particle_data), MPI_BYTE, partner,
-			   TAG_SPHDATA, MPI_COMM_WORLD, &status);
+		  RDMA_Recv(&P[N_gas], recv_count * sizeof(struct particle_data), R_TYPE_BYTE, partner);
+		  RDMA_Recv(&Key[N_gas], recv_count * sizeof(peanokey), R_TYPE_BYTE, partner);
+		  RDMA_Recv(&SphP[N_gas], recv_count * sizeof(struct sph_particle_data), R_TYPE_BYTE, partner);
 
 		  N_gas += recv_count;
 		}
 	      else
 		{
-		  MPI_Recv(&P[NumPart], recv_count * sizeof(struct particle_data), MPI_BYTE, partner,
-			   TAG_PDATA, MPI_COMM_WORLD, &status);
-		  MPI_Recv(&Key[NumPart], recv_count * sizeof(peanokey), MPI_BYTE, partner,
-			   TAG_KEY, MPI_COMM_WORLD, &status);
+		  RDMA_Recv(&P[NumPart], recv_count * sizeof(struct particle_data), R_TYPE_BYTE, partner);
+		  RDMA_Recv(&Key[NumPart], recv_count * sizeof(peanokey), R_TYPE_BYTE, partner);
 		}
 
 	      NumPart += recv_count;
@@ -753,8 +744,8 @@ void domain_countToGo(void)
 	}
     }
 
-  MPI_Allgather(local_toGo, NTask, MPI_INT, toGo, NTask, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(local_toGoSph, NTask, MPI_INT, toGoSph, NTask, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(local_toGo, NTask, R_TYPE_INT, toGo, NTask, R_TYPE_INT);
+  RDMA_Allgather(local_toGoSph, NTask, R_TYPE_INT, toGoSph, NTask, R_TYPE_INT);
 }
 
 
@@ -829,9 +820,9 @@ void domain_sumCost(void)
 	local_DomainCountSph[no] += 1;
     }
 
-  MPI_Allreduce(local_DomainWork, DomainWork, NTopleaves, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(local_DomainCount, DomainCount, NTopleaves, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(local_DomainCountSph, DomainCountSph, NTopleaves, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(local_DomainWork, DomainWork, NTopleaves, R_TYPE_DOUBLE, R_OP_SUM);
+  RDMA_Allreduce(local_DomainCount, DomainCount, NTopleaves, R_TYPE_INT, R_OP_SUM);
+  RDMA_Allreduce(local_DomainCountSph, DomainCountSph, NTopleaves, R_TYPE_INT, R_OP_SUM);
 
 
   free(local_DomainCountSph);
@@ -866,8 +857,8 @@ void domain_findExtent(void)
 	}
     }
 
-  MPI_Allreduce(xmin, xmin_glob, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(xmax, xmax_glob, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(xmin, xmin_glob, 3, R_TYPE_DOUBLE, R_OP_MIN);
+  RDMA_Allreduce(xmax, xmax_glob, 3, R_TYPE_DOUBLE, R_OP_MAX);
 
   len = 0;
   for(j = 0; j < 3; j++)
@@ -932,7 +923,7 @@ void domain_determineTopTree(void)
   ntopnodelist = malloc(sizeof(int) * NTask);
   ntopoffset = malloc(sizeof(int) * NTask);
 
-  MPI_Allgather(&ntop_local, 1, MPI_INT, ntopnodelist, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&ntop_local, 1, R_TYPE_INT, ntopnodelist, 1, R_TYPE_INT);
 
   for(i = 0, ntop = 0, ntopoffset[0] = 0; i < NTask; i++)
     {
@@ -950,8 +941,8 @@ void domain_determineTopTree(void)
       ntopoffset[i] *= sizeof(struct topnode_exchange);
     }
 
-  MPI_Allgatherv(toplist_local, ntop_local * sizeof(struct topnode_exchange), MPI_BYTE,
-		 toplist, ntopnodelist, ntopoffset, MPI_BYTE, MPI_COMM_WORLD);
+  MPI_Allgatherv(toplist_local, ntop_local * sizeof(struct topnode_exchange), R_TYPE_BYTE,
+		 toplist, ntopnodelist, ntopoffset, R_TYPE_BYTE, MPI_COMM_WORLD);
 
   qsort(toplist, ntop, sizeof(struct topnode_exchange), domain_compare_toplist);
 

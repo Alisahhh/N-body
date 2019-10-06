@@ -77,12 +77,12 @@ void pm_init_periodic(void)
   for(i = 0; i < nslab_x; i++)
     slab_to_task_local[slabstart_x + i] = ThisTask;
 
-  MPI_Allreduce(slab_to_task_local, slab_to_task, PMGRID, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  RDMA_Allreduce(slab_to_task_local, slab_to_task, PMGRID, R_TYPE_INT, R_OP_SUM);
 
-  MPI_Allreduce(&nslab_x, &smallest_slab, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  RDMA_Allreduce(&nslab_x, &smallest_slab, 1, R_TYPE_INT, R_OP_MIN);
 
   slabs_per_task = malloc(NTask * sizeof(int));
-  MPI_Allgather(&nslab_x, 1, MPI_INT, slabs_per_task, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&nslab_x, 1, R_TYPE_INT, slabs_per_task, 1, R_TYPE_INT);
 
   if(ThisTask == 0)
     {
@@ -91,7 +91,7 @@ void pm_init_periodic(void)
     }
 
   first_slab_of_task = malloc(NTask * sizeof(int));
-  MPI_Allgather(&slabstart_x, 1, MPI_INT, first_slab_of_task, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&slabstart_x, 1, R_TYPE_INT, first_slab_of_task, 1, R_TYPE_INT);
 
   meshmin_list = malloc(3 * NTask * sizeof(int));
   meshmax_list = malloc(3 * NTask * sizeof(int));
@@ -99,7 +99,7 @@ void pm_init_periodic(void)
 
   to_slab_fac = PMGRID / All.BoxSize;
 
-  MPI_Allreduce(&fftsize, &maxfftsize, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&fftsize, &maxfftsize, 1, R_TYPE_INT, R_OP_MAX);
 }
 
 
@@ -117,7 +117,7 @@ void pm_init_periodic_allocate(int dimprod)
   double bytes_tot = 0;
   size_t bytes;
 
-  MPI_Allreduce(&dimprod, &dimprodmax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  RDMA_Allreduce(&dimprod, &dimprodmax, 1, R_TYPE_INT, R_OP_MAX);
 
   /* allocate the memory to hold the FFT fields */
 
@@ -190,7 +190,6 @@ void pmforce_periodic(void)
   int meshmin[3], meshmax[3], sendmin, sendmax, recvmin, recvmax;
   int rep, ncont, cont_sendmin[2], cont_sendmax[2], cont_recvmin[2], cont_recvmax[2];
   int dimx, dimy, dimz, recv_dimx, recv_dimy, recv_dimz;
-  MPI_Status status;
 
 
   if(ThisTask == 0)
@@ -233,8 +232,8 @@ void pmforce_periodic(void)
 	}
     }
 
-  MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+  RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
 
   dimx = meshmax[0] - meshmin[0] + 2;
   dimy = meshmax[1] - meshmin[1] + 2;
@@ -327,9 +326,9 @@ void pmforce_periodic(void)
 	      if(level > 0)
 		{
 		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE, recvTask,
+			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
 			       TAG_PERIODIC_A, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_PERIODIC_A, MPI_COMM_WORLD, &status);
 		}
 	      else
@@ -562,9 +561,9 @@ void pmforce_periodic(void)
 		    {
 		      MPI_Sendrecv(forcegrid,
 				   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-				   MPI_BYTE, recvTask, TAG_PERIODIC_B,
+				   R_TYPE_BYTE, recvTask, TAG_PERIODIC_B,
 				   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE,
+				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
 				   recvTask, TAG_PERIODIC_B, MPI_COMM_WORLD, &status);
 		    }
 		  else
@@ -703,7 +702,7 @@ void pmpotential_periodic(void)
   int meshmin[3], meshmax[3], sendmin, sendmax, recvmin, recvmax;
   int rep, ncont, cont_sendmin[2], cont_sendmax[2], cont_recvmin[2], cont_recvmax[2];
   int dimx, dimy, dimz, recv_dimx, recv_dimy, recv_dimz;
-  MPI_Status status;
+
 
   if(ThisTask == 0)
     {
@@ -742,8 +741,8 @@ void pmpotential_periodic(void)
 	}
     }
 
-  MPI_Allgather(meshmin, 3, MPI_INT, meshmin_list, 3, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(meshmax, 3, MPI_INT, meshmax_list, 3, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(meshmin, 3, R_TYPE_INT, meshmin_list, 3, R_TYPE_INT);
+  RDMA_Allgather(meshmax, 3, R_TYPE_INT, meshmax_list, 3, R_TYPE_INT);
 
   dimx = meshmax[0] - meshmin[0] + 2;
   dimy = meshmax[1] - meshmin[1] + 2;
@@ -836,9 +835,9 @@ void pmpotential_periodic(void)
 	      if(level > 0)
 		{
 		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE, recvTask,
+			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
 			       TAG_PERIODIC_C, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), MPI_BYTE,
+			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
 			       recvTask, TAG_PERIODIC_C, MPI_COMM_WORLD, &status);
 		}
 	      else
@@ -1070,9 +1069,9 @@ void pmpotential_periodic(void)
 		    {
 		      MPI_Sendrecv(forcegrid,
 				   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-				   MPI_BYTE, recvTask, TAG_PERIODIC_D,
+				   R_TYPE_BYTE, recvTask, TAG_PERIODIC_D,
 				   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), MPI_BYTE,
+				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
 				   recvTask, TAG_PERIODIC_D, MPI_COMM_WORLD, &status);
 		    }
 		  else

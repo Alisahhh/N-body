@@ -31,7 +31,6 @@ void compute_potential(void)
   int *nsend, *noffset, *nsend_local, *nbuffer, *ndonelist, *numlist;
   double fac;
   double t0, t1, tstart, tend;
-  MPI_Status status;
   double r2;
 
   t0 = second();
@@ -63,7 +62,7 @@ void compute_potential(void)
   All.CPU_TreeConstruction += timediff(tstart, tend);
 
   numlist = malloc(NTask * sizeof(int) * NTask);
-  MPI_Allgather(&NumPart, 1, MPI_INT, numlist, 1, MPI_INT, MPI_COMM_WORLD);
+  RDMA_Allgather(&NumPart, 1, R_TYPE_INT, numlist, 1, R_TYPE_INT);
   for(i = 0, ntot = 0; i < NTask; i++)
     ntot += numlist[i];
   free(numlist);
@@ -129,7 +128,7 @@ void compute_potential(void)
       for(j = 1, noffset[0] = 0; j < NTask; j++)
 	noffset[j] = noffset[j - 1] + nsend_local[j - 1];
 
-      MPI_Allgather(nsend_local, NTask, MPI_INT, nsend, NTask, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(nsend_local, NTask, R_TYPE_INT, nsend, NTask, R_TYPE_INT);
 
       /* now do the particles that need to be exported */
 
@@ -158,10 +157,10 @@ void compute_potential(void)
 		    {
 		      /* get the particles */
 		      MPI_Sendrecv(&GravDataIn[noffset[recvTask]],
-				   nsend_local[recvTask] * sizeof(struct gravdata_in), MPI_BYTE,
+				   nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
 				   recvTask, TAG_POTENTIAL_A,
 				   &GravDataGet[nbuffer[ThisTask]],
-				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in), MPI_BYTE,
+				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
 				   recvTask, TAG_POTENTIAL_A, MPI_COMM_WORLD, &status);
 		    }
 		}
@@ -206,10 +205,10 @@ void compute_potential(void)
 		      /* send the results */
 		      MPI_Sendrecv(&GravDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-				   MPI_BYTE, recvTask, TAG_POTENTIAL_B,
+				   R_TYPE_BYTE, recvTask, TAG_POTENTIAL_B,
 				   &GravDataOut[noffset[recvTask]],
 				   nsend_local[recvTask] * sizeof(struct gravdata_in),
-				   MPI_BYTE, recvTask, TAG_POTENTIAL_B, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask, TAG_POTENTIAL_B, MPI_COMM_WORLD, &status);
 
 		      /* add the result to the particles */
 		      for(j = 0; j < nsend_local[recvTask]; j++)
@@ -229,7 +228,7 @@ void compute_potential(void)
 	  level = ngrp - 1;
 	}
 
-      MPI_Allgather(&ndone, 1, MPI_INT, ndonelist, 1, MPI_INT, MPI_COMM_WORLD);
+      RDMA_Allgather(&ndone, 1, R_TYPE_INT, ndonelist, 1, R_TYPE_INT);
       for(j = 0; j < NTask; j++)
 	ntotleft -= ndonelist[j];
     }

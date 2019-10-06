@@ -211,7 +211,6 @@ void gravity_tree(void) {
   int k, place;
   int level, sendTask, recvTask;
   double ax, ay, az;
-  MPI_Status status;
 #endif
 
   /* set new softening lengths */
@@ -236,8 +235,7 @@ void gravity_tree(void) {
   /* Note: 'NumForceUpdate' has already been determined in
    * find_next_sync_point_and_drift() */
   numlist = malloc(NTask * sizeof(int) * NTask);
-  MPI_Allgather(&NumForceUpdate, 1, MPI_INT, numlist, 1, MPI_INT,
-                MPI_COMM_WORLD);
+  RDMA_Allgather(&NumForceUpdate, 1, R_TYPE_INT, numlist, 1, R_TYPE_INT);
   for (i = 0, ntot = 0; i < NTask; i++) ntot += numlist[i];
   free(numlist);
 
@@ -310,8 +308,7 @@ void gravity_tree(void) {
 
     tstart = second();
 
-    MPI_Allgather(nsend_local, NTask, MPI_INT, nsend, NTask, MPI_INT,
-                  MPI_COMM_WORLD);
+    RDMA_Allgather(nsend_local, NTask, R_TYPE_INT, nsend, NTask, R_TYPE_INT);
 
     tend = second();
     timeimbalance += timediff(tstart, tend);
@@ -340,10 +337,10 @@ void gravity_tree(void) {
 
             MPI_Sendrecv(
                 &GravDataIn[noffset[recvTask]],
-                nsend_local[recvTask] * sizeof(struct gravdata_in), MPI_BYTE,
+                nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
                 recvTask, TAG_GRAV_A, &GravDataGet[nbuffer[ThisTask]],
                 nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-                MPI_BYTE, recvTask, TAG_GRAV_A, MPI_COMM_WORLD, &status);
+                R_TYPE_BYTE, recvTask, TAG_GRAV_A, MPI_COMM_WORLD, &status);
           }
         }
 
@@ -365,7 +362,7 @@ void gravity_tree(void) {
       timetree += timediff(tstart, tend);
 
       tstart = second();
-      MPI_Barrier(MPI_COMM_WORLD);
+      RDMA_Barrier();
       tend = second();
       timeimbalance += timediff(tstart, tend);
 
@@ -390,8 +387,8 @@ void gravity_tree(void) {
             MPI_Sendrecv(
                 &GravDataResult[nbuffer[ThisTask]],
                 nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-                MPI_BYTE, recvTask, TAG_GRAV_B, &GravDataOut[noffset[recvTask]],
-                nsend_local[recvTask] * sizeof(struct gravdata_in), MPI_BYTE,
+                R_TYPE_BYTE, recvTask, TAG_GRAV_B, &GravDataOut[noffset[recvTask]],
+                nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
                 recvTask, TAG_GRAV_B, MPI_COMM_WORLD, &status);
 
             /* add the result to the particles */
@@ -417,7 +414,7 @@ void gravity_tree(void) {
       level = ngrp - 1;
     }
 
-    MPI_Allgather(&ndone, 1, MPI_INT, ndonelist, 1, MPI_INT, MPI_COMM_WORLD);
+    RDMA_Allgather(&ndone, 1, R_TYPE_INT, ndonelist, 1, R_TYPE_INT);
     for (j = 0; j < NTask; j++) ntotleft -= ndonelist[j];
   }
 
@@ -506,20 +503,14 @@ void gravity_tree(void) {
 
   numnodes = Numnodestree;
 
-  MPI_Gather(&costtotal, 1, MPI_DOUBLE, costtreelist, 1, MPI_DOUBLE, 0,
-             MPI_COMM_WORLD);
-  MPI_Gather(&numnodes, 1, MPI_INT, numnodeslist, 1, MPI_INT, 0,
-             MPI_COMM_WORLD);
-  MPI_Gather(&timetree, 1, MPI_DOUBLE, timetreelist, 1, MPI_DOUBLE, 0,
-             MPI_COMM_WORLD);
-  MPI_Gather(&timecommsumm, 1, MPI_DOUBLE, timecommlist, 1, MPI_DOUBLE, 0,
-             MPI_COMM_WORLD);
-  MPI_Gather(&NumPart, 1, MPI_INT, nrecv, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Gather(&ewaldcount, 1, MPI_DOUBLE, ewaldlist, 1, MPI_DOUBLE, 0,
-             MPI_COMM_WORLD);
-  MPI_Reduce(&nexportsum, &nexport, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&timeimbalance, &sumimbalance, 1, MPI_DOUBLE, MPI_SUM, 0,
-             MPI_COMM_WORLD);
+  RDMA_Gather(&costtotal, 1, R_TYPE_DOUBLE, costtreelist, 1, R_TYPE_DOUBLE, 0);
+  RDMA_Gather(&numnodes, 1, R_TYPE_INT, numnodeslist, 1, R_TYPE_INT, 0);
+  RDMA_Gather(&timetree, 1, R_TYPE_DOUBLE, timetreelist, 1, R_TYPE_DOUBLE, 0);
+  RDMA_Gather(&timecommsumm, 1, R_TYPE_DOUBLE, timecommlist, 1, R_TYPE_DOUBLE, 0);
+  RDMA_Gather(&NumPart, 1, R_TYPE_INT, nrecv, 1, R_TYPE_INT, 0);
+  RDMA_Gather(&ewaldcount, 1, R_TYPE_DOUBLE, ewaldlist, 1, R_TYPE_DOUBLE, 0);
+  RDMA_Gather(&nexportsum, &nexport, 1, R_TYPE_INT, R_OP_SUM, 0);
+  RDMA_Gather(&timeimbalance, &sumimbalance, 1, R_TYPE_DOUBLE, R_OP_SUM, 0);
 
   if (ThisTask == 0) {
     All.TotNumOfForces += ntot;
