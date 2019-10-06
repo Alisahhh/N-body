@@ -190,6 +190,9 @@ void hydro_force(void)
 	  tstart = second();
 	  for(j = 0; j < NTask; j++)
 	    nbuffer[j] = 0;
+		int sendrecvTable[NTask];
+		int totSendRecvCount = 0;
+		memset(sendrecvTable, 0, sizeof(sendrecvTable));	
 	  for(ngrp = level; ngrp < (1 << PTask); ngrp++)
 	    {
 	      maxfill = 0;
@@ -209,13 +212,18 @@ void hydro_force(void)
 		{
 		  if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 		    {
-		      /* get the particles */
-		      MPI_Sendrecv(&HydroDataIn[noffset[recvTask]],
+				RMDA_Send(&HydroDataIn[noffset[recvTask]],
 				   nsend_local[recvTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
-				   recvTask, TAG_HYDRO_A,
-				   &HydroDataGet[nbuffer[ThisTask]],
-				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
-				   recvTask, TAG_HYDRO_A, MPI_COMM_WORLD, &status);
+				   recvTask);
+				sendrecvTable[recvTask] ++;
+				totSendRecvCount ++;
+		      /* get the particles */
+		    //   MPI_Sendrecv(&HydroDataIn[noffset[recvTask]],
+			// 	   nsend_local[recvTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
+			// 	   recvTask, TAG_HYDRO_A,
+			// 	   &HydroDataGet[nbuffer[ThisTask]],
+			// 	   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
+			// 	   recvTask, TAG_HYDRO_A, MPI_COMM_WORLD, &status);
 		    }
 		}
 
@@ -223,6 +231,17 @@ void hydro_force(void)
 		if((j ^ ngrp) < NTask)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
+		for(recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
+			if(totSendRecvCount == 0) break;
+			if(RDMA_Irecv(&HydroDataGet[nbuffer[ThisTask]],
+				nsend[recvid * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
+				recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
+		}
+	
 	  tend = second();
 	  timecommsumm += timediff(tstart, tend);
 
@@ -263,12 +282,17 @@ void hydro_force(void)
 		  if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 		    {
 		      /* send the results */
-		      MPI_Sendrecv(&HydroDataResult[nbuffer[ThisTask]],
+			  RMDA_Send(&HydroDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_out),
-				   R_TYPE_BYTE, recvTask, TAG_HYDRO_B,
-				   &HydroDataPartialResult[noffset[recvTask]],
-				   nsend_local[recvTask] * sizeof(struct hydrodata_out),
-				   R_TYPE_BYTE, recvTask, TAG_HYDRO_B, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask));
+				sendrecvTable[ThisTask] ++;
+				totSendRecvCount ++;
+		    //   MPI_Sendrecv(&HydroDataResult[nbuffer[ThisTask]],
+			// 	   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_out),
+			// 	   R_TYPE_BYTE, recvTask, TAG_HYDRO_B,
+			// 	   &HydroDataPartialResult[noffset[recvTask]],
+			// 	   nsend_local[recvTask] * sizeof(struct hydrodata_out),
+			// 	   R_TYPE_BYTE, recvTask, TAG_HYDRO_B, MPI_COMM_WORLD, &status);
 
 		      /* add the result to the particles */
 		      for(j = 0; j < nsend_local[recvTask]; j++)
@@ -291,6 +315,34 @@ void hydro_force(void)
 		if((j ^ ngrp) < NTask)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] != 0){
+				for(j = 0; j < nsend_local[recvid]; j++)
+				{
+					source = j + noffset[recvid];
+					place = HydroDataIn[source].Index;
+
+					for(k = 0; k < 3; k++)
+						SphP[place].HydroAccel[k] += HydroDataPartialResult[source].Acc[k];
+
+					SphP[place].DtEntropy += HydroDataPartialResult[source].DtEntropy;
+
+					if(SphP[place].MaxSignalVel < HydroDataPartialResult[source].MaxSignalVel)
+						SphP[place].MaxSignalVel = HydroDataPartialResult[source].MaxSignalVel;
+				}
+			}
+		}
+	
+		for(recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
+			if(totSendRecvCount == 0) break;
+			if(RDMA_Irecv(&HydroDataPartialResult[noffset[recvid]],
+				nsend_local[recvid] * sizeof(struct hydrodata_out),
+				R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
+		}
 	  tend = second();
 	  timecommsumm += timediff(tstart, tend);
 

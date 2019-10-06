@@ -318,6 +318,11 @@ void gravity_tree(void) {
     for (level = 1; level < (1 << PTask); level++) {
       tstart = second();
       for (j = 0; j < NTask; j++) nbuffer[j] = 0;
+
+      int sendrecvTable[NTask][NTask];
+      int totSendRecvCount = 0;
+      memset(sendrecvTable, 0, sizeof(sendrecvTable));
+      
       for (ngrp = level; ngrp < (1 << PTask); ngrp++) {
         maxfill = 0;
         for (j = 0; j < NTask; j++) {
@@ -334,19 +339,35 @@ void gravity_tree(void) {
           if (nsend[ThisTask * NTask + recvTask] > 0 ||
               nsend[recvTask * NTask + ThisTask] > 0) {
             /* get the particles */
-
-            MPI_Sendrecv(
-                &GravDataIn[noffset[recvTask]],
+            RMDA_Send(&GravDataIn[noffset[recvTask]],
                 nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
-                recvTask, TAG_GRAV_A, &GravDataGet[nbuffer[ThisTask]],
-                nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-                R_TYPE_BYTE, recvTask, TAG_GRAV_A, MPI_COMM_WORLD, &status);
+                recvTask));
+            sendrecvTable[recvTask] ++;
+            totSendRecvCount ++;
+
+            // MPI_Sendrecv(
+            //     &GravDataIn[noffset[recvTask]],
+            //     nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+            //     recvTask, TAG_GRAV_A, &GravDataGet[nbuffer[ThisTask]],
+            //     nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
+            //     R_TYPE_BYTE, recvTask, TAG_GRAV_A, MPI_COMM_WORLD, &status);
           }
         }
 
         for (j = 0; j < NTask; j++)
           if ((j ^ ngrp) < NTask) nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
       }
+      for(recvid = 0; recvid < NTask; recvid ++){
+        if(sendrecvTable[recvid] == 0) continue;
+        if(totSendRecvCount == 0) break;
+        if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
+              nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in),
+              R_TYPE_BYTE, recvid) == 0) {
+          sendrecvTable[recvTask] --;
+          totSendRecvCount --;
+        }
+      }
+    
       tend = second();
       timecommsumm += timediff(tstart, tend);
 
@@ -384,30 +405,61 @@ void gravity_tree(void) {
           if (nsend[ThisTask * NTask + recvTask] > 0 ||
               nsend[recvTask * NTask + ThisTask] > 0) {
             /* send the results */
-            MPI_Sendrecv(
-                &GravDataResult[nbuffer[ThisTask]],
+            RMDA_Send(&GravDataResult[nbuffer[ThisTask]],
                 nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
-                R_TYPE_BYTE, recvTask, TAG_GRAV_B, &GravDataOut[noffset[recvTask]],
-                nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
-                recvTask, TAG_GRAV_B, MPI_COMM_WORLD, &status);
+                R_TYPE_BYTE, recvTask));
+            sendrecvTable[recvTask] ++;
+            totSendRecvCount ++;
+            // MPI_Sendrecv(
+            //     &GravDataResult[nbuffer[ThisTask]],
+            //     nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
+            //     R_TYPE_BYTE, recvTask, TAG_GRAV_B, &GravDataOut[noffset[recvTask]],
+            //     nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+            //     recvTask, TAG_GRAV_B, MPI_COMM_WORLD, &status);
 
             /* add the result to the particles */
-            for (j = 0; j < nsend_local[recvTask]; j++) {
-              place = GravDataIndexTable[noffset[recvTask] + j].Index;
+            // for (j = 0; j < nsend_local[recvTask]; j++) {
+            //   place = GravDataIndexTable[noffset[recvTask] + j].Index;
 
-              for (k = 0; k < 3; k++)
-                P[place].GravAccel[k] +=
-                    GravDataOut[j + noffset[recvTask]].u.Acc[k];
+            //   for (k = 0; k < 3; k++)
+            //     P[place].GravAccel[k] +=
+            //         GravDataOut[j + noffset[recvTask]].u.Acc[k];
 
-              P[place].GravCost +=
-                  GravDataOut[j + noffset[recvTask]].w.Ninteractions;
-            }
+            //   P[place].GravCost +=
+            //       GravDataOut[j + noffset[recvTask]].w.Ninteractions;
+            // }
           }
         }
 
         for (j = 0; j < NTask; j++)
           if ((j ^ ngrp) < NTask) nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
       }
+      for(int recvid = 0; recvid < NTask; recvid ++){
+        if(sendrecvTable[recvid] != 0){
+          for (j = 0; j < nsend_local[recvTask]; j++) {
+            place = GravDataIndexTable[noffset[recvid] + j].Index;
+
+            for (k = 0; k < 3; k++)
+              P[place].GravAccel[k] +=
+                  GravDataOut[j + noffset[recvid]].u.Acc[k];
+
+            P[place].GravCost +=
+                GravDataOut[j + noffset[recvid]].w.Ninteractions;
+          }
+        }
+      }
+
+      for(recvid = 0; recvid < NTask; recvid ++){
+        if(sendrecvTable[recvid] == 0) continue;
+        if(totSendRecvCount == 0) break;
+        if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
+              nsend_local[recvid] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+              recvid) == 0) {
+          sendrecvTable[recvTask] --;
+          totSendRecvCount --;
+        }
+      }
+    
       tend = second();
       timecommsumm += timediff(tstart, tend);
 

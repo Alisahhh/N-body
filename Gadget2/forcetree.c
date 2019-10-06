@@ -708,21 +708,43 @@ void force_exchange_pseudodata(void)
     }
 
   /* share the pseudo-particle data accross CPUs */
-
+	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
   for(level = 1; level < (1 << PTask); level++)
     {
       sendTask = ThisTask;
       recvTask = ThisTask ^ level;
 
-      if(recvTask < NTask)
-	MPI_Sendrecv(&DomainMoment[DomainStartList[sendTask]],
+      if(recvTask < NTask){
+		  sendrecvTable[recvTask] ++;
+		  totSendRecvCount ++;
+		  RDMA_Send(&DomainMoment[DomainStartList[sendTask]],
 		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(struct DomainNODE),
-		     R_TYPE_BYTE, recvTask, TAG_DMOM,
-		     &DomainMoment[DomainStartList[recvTask]],
-		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(struct DomainNODE),
-		     R_TYPE_BYTE, recvTask, TAG_DMOM, MPI_COMM_WORLD, &status);
+		     R_TYPE_BYTE, recvTask);
+	// MPI_Sendrecv(&DomainMoment[DomainStartList[sendTask]],
+	// 	     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(struct DomainNODE),
+	// 	     R_TYPE_BYTE, recvTask, TAG_DMOM,
+	// 	     &DomainMoment[DomainStartList[recvTask]],
+	// 	     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(struct DomainNODE),
+	// 	     R_TYPE_BYTE, recvTask, TAG_DMOM, MPI_COMM_WORLD, &status);
+	  }
     }
-
+	// for(level = 1; level < (1 << PTask); level++){
+	// 	sendTask = ThisTask;
+    //  	recvTask = ThisTask ^ level;
+	// 	RDMA_Recv
+	// }
+	for(recvid = 0; recvid < NTask; recvid ++){
+		if(sendrecvTable[recvid] == 0) continue;
+		if(totSendRecvCount == 0) break;
+		if(RDMA_Irecv( &DomainMoment[DomainStartList[recvid]],
+		(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(struct DomainNODE),
+		R_TYPE_BYTE, recvid) == 0) {
+			sendrecvTable[recvid] --;
+			totSendRecvCount --;
+		}
+	}
 }
 
 /*! This function updates the top-level tree after the multipole moments of
@@ -895,20 +917,40 @@ void force_update_len(void)
 
       DomainTreeNodeLen[i] = Nodes[no].len;
     }
-
+	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
   for(level = 1; level < (1 << PTask); level++)
     {
       sendTask = ThisTask;
       recvTask = ThisTask ^ level;
-
-      if(recvTask < NTask)
-	MPI_Sendrecv(&DomainTreeNodeLen[DomainStartList[sendTask]],
-		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
-		     R_TYPE_BYTE, recvTask, TAG_NODELEN,
-		     &DomainTreeNodeLen[DomainStartList[recvTask]],
-		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
-		     R_TYPE_BYTE, recvTask, TAG_NODELEN, MPI_COMM_WORLD, &status);
+      if(recvTask < NTask){
+		sendrecvTable[recvTask] ++;
+		totSendRecvCount ++;
+		RDMA_Send(&DomainTreeNodeLen[DomainStartList[sendTask]],
+			(DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
+			R_TYPE_BYTE, recvTask);
+		
+	// MPI_Sendrecv(&DomainTreeNodeLen[DomainStartList[sendTask]],
+	// 	     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
+	// 	     R_TYPE_BYTE, recvTask, TAG_NODELEN,
+	// 	     &DomainTreeNodeLen[DomainStartList[recvTask]],
+	// 	     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
+	// 	     R_TYPE_BYTE, recvTask, TAG_NODELEN, MPI_COMM_WORLD, &status);
+	  }
     }
+
+	for(recvid = 0; recvid < NTask; recvid ++){
+		if(sendrecvTable[recvid] == 0) continue;
+		if(totSendRecvCount == 0) break;
+		if(RDMA_Irecv( &DomainTreeNodeLen[DomainStartList[recvid]],
+			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
+			R_TYPE_BYTE, recvid) == 0) {
+			sendrecvTable[recvid] --;
+			totSendRecvCount --;
+		}
+	}
+	
 
   /* Finally, we update the top-level tree. */
   force_update_node_len_toptree();
@@ -1029,14 +1071,34 @@ void force_update_hmax(void)
     {
       sendTask = ThisTask;
       recvTask = ThisTask ^ level;
-
-      if(recvTask < NTask)
-	MPI_Sendrecv(&DomainHmax[DomainStartList[sendTask]],
+		int sendrecvTable[NTask];
+		int totSendRecvCount = 0;
+		memset(sendrecvTable, 0, sizeof(sendrecvTable));
+      if(recvTask < NTask){
+		sendrecvTable[recvTask] ++;
+		totSendRecvCount ++;
+		RDMA_Send(&DomainHmax[DomainStartList[sendTask]],
 		     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
-		     R_TYPE_BYTE, recvTask, TAG_HMAX,
-		     &DomainHmax[DomainStartList[recvTask]],
-		     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
-		     R_TYPE_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
+		     R_TYPE_BYTE, recvTask);
+	// MPI_Sendrecv(&DomainHmax[DomainStartList[sendTask]],
+	// 	     (DomainEndList[sendTask] - DomainStartList[sendTask] + 1) * sizeof(FLOAT),
+	// 	     R_TYPE_BYTE, recvTask, TAG_HMAX,
+	// 	     &DomainHmax[DomainStartList[recvTask]],
+	// 	     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
+	// 	     R_TYPE_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
+	  }
+
+	for(recvid = 0; recvid < NTask; recvid ++){
+		if(sendrecvTable[recvid] == 0) continue;
+		if(totSendRecvCount == 0) break;
+		if(RDMA_Irecv( &DomainHmax[DomainStartList[recvid]],
+			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
+			R_TYPE_BYTE, recvid) == 0) {
+			sendrecvTable[recvid] --;
+			totSendRecvCount --;
+		}
+	}
+	
     }
 
 

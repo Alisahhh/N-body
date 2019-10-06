@@ -163,12 +163,15 @@ void density(void)
 
 
 	  /* now do the particles that need to be exported */
-
+	//   memset(recvTaskNum, 0, sizeof(recvTaskNum));
 	  for(level = 1; level < (1 << PTask); level++)
 	    {
 	      tstart = second();
 	      for(j = 0; j < NTask; j++)
 		nbuffer[j] = 0;
+		int sendrecvTable[NTask];
+		int totSendRecvCount = 0;
+	  	memset(sendrecvTable, 0, sizeof(sendrecvTable));
 	      for(ngrp = level; ngrp < (1 << PTask); ngrp++)
 		{
 		  maxfill = 0;
@@ -188,19 +191,35 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
+				RMDA_Send(&DensDataIn[noffset[recvTask]], nsend_local[recvTask]*sizeof(struct densdata_in), 
+				R_TYPE_BYTE, recvTask);
+				sendrecvTable[recvTask] ++;
+				totSendRecvCount ++;
 			  /* get the particles */
-			  MPI_Sendrecv(&DensDataIn[noffset[recvTask]],
-				       nsend_local[recvTask] * sizeof(struct densdata_in), R_TYPE_BYTE,
-				       recvTask, TAG_DENS_A,
-				       &DensDataGet[nbuffer[ThisTask]],
-				       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_in),
-				       R_TYPE_BYTE, recvTask, TAG_DENS_A, MPI_COMM_WORLD, &status);
+				//   MPI_Sendrecv(&DensDataIn[noffset[recvTask]],
+				// 	       nsend_local[recvTask] * sizeof(struct densdata_in), R_TYPE_BYTE,
+				// 	       recvTask, TAG_DENS_A,
+				// 	       &DensDataGet[nbuffer[ThisTask]],
+				// 	       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_in),
+				// 	       R_TYPE_BYTE, recvTask, TAG_DENS_A, MPI_COMM_WORLD, &status);
 			}
 		    }
 
 		  for(j = 0; j < NTask; j++)
 		    if((j ^ ngrp) < NTask)
 		      nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
+		}
+		for(ThisTask = 0; ThisTask < NTask; ThisTask ++){
+			if(totSendRecvCount == 0) break;
+			for(recvid = 0; recvid < NTask; recvid ++){
+				if(sendrecvTable[recvid] == 0) continue;
+				if(totSendRecvCount == 0) break;
+				if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
+				    R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
+			}
 		}
 	      tend = second();
 	      timecommsumm += timediff(tstart, tend);
@@ -222,6 +241,9 @@ void density(void)
 	      tstart = second();
 	      for(j = 0; j < NTask; j++)
 		nbuffer[j] = 0;
+
+		memset(sendrecvTable, 0 ,sizeof(sendrecvTable));
+		totSendRecvCount = 0;
 	      for(ngrp = level; ngrp < (1 << PTask); ngrp++)
 		{
 		  maxfill = 0;
@@ -241,30 +263,34 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
+			RMDA_Send(&DensDataIn[noffset[recvTask],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+			R_TYPE_BYTE, recvTask));
+			sendrecvTable[recvTask] ++;
+			totSendRecvCount ++;
 			  /* send the results */
-			  MPI_Sendrecv(&DensDataResult[nbuffer[ThisTask]],
-				       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
-				       R_TYPE_BYTE, recvTask, TAG_DENS_B,
-				       &DensDataPartialResult[noffset[recvTask]],
-				       nsend_local[recvTask] * sizeof(struct densdata_out),
-				       R_TYPE_BYTE, recvTask, TAG_DENS_B, MPI_COMM_WORLD, &status);
+			//   MPI_Sendrecv(&DensDataResult[nbuffer[ThisTask]],
+			// 	       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+			// 	       R_TYPE_BYTE, recvTask, TAG_DENS_B,
+			// 	       &DensDataPartialResult[noffset[recvTask]],
+			// 	       nsend_local[recvTask] * sizeof(struct densdata_out),
+			// 	       R_TYPE_BYTE, recvTask, TAG_DENS_B, MPI_COMM_WORLD, &status);
 
 			  /* add the result to the particles */
-			  for(j = 0; j < nsend_local[recvTask]; j++)
-			    {
-			      source = j + noffset[recvTask];
-			      place = DensDataIn[source].Index;
+				//   for(j = 0; j < nsend_local[recvTask]; j++)
+				//     {
+				//       source = j + noffset[recvTask];
+				//       place = DensDataIn[source].Index;
 
-			      SphP[place].NumNgb += DensDataPartialResult[source].Ngb;
-			      SphP[place].Density += DensDataPartialResult[source].Rho;
-			      SphP[place].DivVel += DensDataPartialResult[source].Div;
+				//       SphP[place].NumNgb += DensDataPartialResult[source].Ngb ;
+				//       SphP[place].Density += DensDataPartialResult[source].Rho;
+				//       SphP[place].DivVel += DensDataPartialResult[source].Div;
 
-			      SphP[place].DhsmlDensityFactor += DensDataPartialResult[source].DhsmlDensity;
+				//       SphP[place].DhsmlDensityFactor += DensDataPartialResult[source].DhsmlDensity;
 
-			      SphP[place].Rot[0] += DensDataPartialResult[source].Rot[0];
-			      SphP[place].Rot[1] += DensDataPartialResult[source].Rot[1];
-			      SphP[place].Rot[2] += DensDataPartialResult[source].Rot[2];
-			    }
+				//       SphP[place].Rot[0] += DensDataPartialResult[source].Rot[0];
+				//       SphP[place].Rot[1] += DensDataPartialResult[source].Rot[1];
+				//       SphP[place].Rot[2] += DensDataPartialResult[source].Rot[2];
+				//     }
 			}
 		    }
 
@@ -272,6 +298,37 @@ void density(void)
 		    if((j ^ ngrp) < NTask)
 		      nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 		}
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] != 0){
+				for(int j = 0;j < nsend_local[recvid]; j++){
+					source = j + noffset[recvid];
+					place = DensDataIn[source].Index;
+
+					SphP[place].NumNgb += DensDataPartialResult[source].Ngb * sendrecvTable[recvid];
+					SphP[place].Density += DensDataPartialResult[source].Rho * sendrecvTable[recvid];
+					SphP[place].DivVel += DensDataPartialResult[source].Div * sendrecvTable[recvid];
+
+					SphP[place].DhsmlDensityFactor += DensDataPartialResult[source].DhsmlDensity * sendrecvTable[recvid];
+
+					SphP[place].Rot[0] += DensDataPartialResult[source].Rot[0] * sendrecvTable[recvid];
+					SphP[place].Rot[1] += DensDataPartialResult[source].Rot[1] * sendrecvTable[recvid];
+					SphP[place].Rot[2] += DensDataPartialResult[source].Rot[2] * sendrecvTable[recvid];
+				}
+			}
+			
+		}
+
+			for(recvid = 0; recvid < NTask; recvid ++){
+				if(sendrecvTable[recvid] == 0) continue;
+				if(totSendRecvCount == 0) break;
+				if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
+					nsend_local[recvid] * sizeof(struct densdata_out),
+					R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
+			}
+			
 	      tend = second();
 	      timecommsumm += timediff(tstart, tend);
 
