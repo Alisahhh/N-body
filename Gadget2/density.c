@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 #include "allvars.h"
 #include "proto.h"
@@ -261,8 +261,8 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
-			RDMA_Send(&DensDataIn[noffset[recvTask],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
-			R_TYPE_BYTE, recvTask));
+			RDMA_Send(&DensDataIn[noffset[recvTask]],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+			R_TYPE_BYTE, recvTask);
 			sendrecvTable[recvTask] ++;
 			totSendRecvCount ++;
 			  /* send the results */

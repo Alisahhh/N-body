@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 #include "allvars.h"
 #include "proto.h"
@@ -170,11 +170,14 @@ void domain_decompose(void)
    */
   temp = malloc(NTask * 6 * sizeof(int));
   RDMA_Allgather(NtypeLocal, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
+  for(int i = 0; i < 6;i++){
+    printf("temp[%d] %d\n",i , temp[i]);
+  }
   for(i = 0; i < 6; i++)
     {
       Ntype[i] = 0;
       for(j = 0; j < NTask; j++)
-	Ntype[i] += temp[j * 6 + i];
+	    Ntype[i] += temp[j * 6 + i];
     }
   free(temp);
 
@@ -859,7 +862,14 @@ void domain_findExtent(void)
 
   RDMA_Allreduce(xmin, xmin_glob, 3, R_TYPE_DOUBLE, R_OP_MIN);
   RDMA_Allreduce(xmax, xmax_glob, 3, R_TYPE_DOUBLE, R_OP_MAX);
+  for(int i = 0; i < 3;i ++){
+    printf("xmin[%d] %lf\n",i,xmin[i]);
+  }
 
+  for(int i = 0; i < 3;i ++){
+    printf("xmax[%d] %lf\n",i,xmax[i]);
+  }
+  
   len = 0;
   for(j = 0; j < 3; j++)
     if(xmax_glob[j] - xmin_glob[j] > len)
@@ -923,8 +933,11 @@ void domain_determineTopTree(void)
   ntopnodelist = malloc(sizeof(int) * NTask);
   ntopoffset = malloc(sizeof(int) * NTask);
 
-  RDMA_Allgather(&ntop_local, 1, R_TYPE_INT, ntopnodelist, 1, R_TYPE_INT);
-
+  printf("%d\n",RDMA_Allgather(&ntop_local, 1, R_TYPE_INT, ntopnodelist, 1, R_TYPE_INT));
+  printf("ntop_local = %d\n", ntop_local);
+  for(int i = 0;i < 1; i++){
+    printf("ntopnodelist[%d] = %d\n",i,ntopnodelist[i]);
+  }
   for(i = 0, ntop = 0, ntopoffset[0] = 0; i < NTask; i++)
     {
       ntop += ntopnodelist[i];
@@ -941,8 +954,9 @@ void domain_determineTopTree(void)
       ntopoffset[i] *= sizeof(struct topnode_exchange);
     }
 
-  RDMA_Allgatherv_exp(toplist_local, ntop_local * sizeof(struct topnode_exchange), R_TYPE_BYTE,
+  int flag = RDMA_Allgatherv_exp(toplist_local, ntop_local * sizeof(struct topnode_exchange), R_TYPE_BYTE,
 		 toplist, ntopnodelist, ntopoffset, R_TYPE_BYTE);
+    printf("flag = %d\n",flag);
 
   qsort(toplist, ntop, sizeof(struct topnode_exchange), domain_compare_toplist);
 

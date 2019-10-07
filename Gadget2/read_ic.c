@@ -3,7 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <string.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 #include "allvars.h"
 #include "proto.h"
@@ -401,7 +401,7 @@ void read_file(char *fname, int readTask, int lastTask)
 
 
 
-  for(blocknr = 0; blocknr < IO_NBLOCKS; blocknr++)
+  for(blocknr = 0; blocknr < IO_NBLOCKS; blocknr = blocknr + 1)
     {
       if(blockpresent(blocknr))
 	{

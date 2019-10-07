@@ -1,0 +1,3 @@
+[submodule "Gadget2/ffrdma"]
+	path = Gadget2/ffrdma
+	url = https://github.com/ThinCats/ffrdma.git

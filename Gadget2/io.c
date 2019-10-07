@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <errno.h>
 
 #ifdef HAVE_HDF5
@@ -82,7 +82,7 @@ void savepositions(int num)
   /* because ntot_type_all[] is of type `long long', we cannot do a simple
    * MPI_Allreduce() to sum the total particle numbers 
    */
-  temp = malloc(NTask * 6 * sizeof(int));
+  temp = (int *)malloc(NTask * 6 * sizeof(int));
   RDMA_Allgather(n_type, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
   for(i = 0; i < 6; i++)
     {
@@ -170,8 +170,8 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 
 
 
-  fp = CommBuffer;
-  ip = CommBuffer;
+  fp = (float *) CommBuffer;
+  ip = (int *)CommBuffer;
 
   pindex = *startindex;
 
@@ -570,7 +570,7 @@ void fill_Tab_IO_Labels(void)
 {
   enum iofields i;
 
-  for(i = 0; i < IO_NBLOCKS; i++)
+  for(i = 0; i < IO_NBLOCKS; i=i+1)
     switch (i)
       {
       case IO_POS:
@@ -814,7 +814,7 @@ void write_file(char *fname, int writeTask, int lastTask)
 
   ntask = lastTask - writeTask + 1;
 
-  for(blocknr = 0; blocknr < IO_NBLOCKS; blocknr++)
+  for(blocknr = 0; blocknr < IO_NBLOCKS; blocknr = blocknr + 1)
     {
       if(blockpresent(blocknr))
 	{

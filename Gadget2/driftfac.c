@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_integration.h>
 

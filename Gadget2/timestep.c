@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include "allvars.h"
 #include "proto.h"
 
@@ -593,7 +593,7 @@ void find_dt_displacement_constraint(double hfac /*!<  should be  a^2*H(a)  */ )
       RDMA_Allreduce(v, v_sum, 6, R_TYPE_DOUBLE, R_OP_SUM);
       RDMA_Allreduce(mim, min_mass, 6, R_TYPE_DOUBLE, R_OP_MIN);
 
-      temp = malloc(NTask * 6 * sizeof(int));
+      temp =(int *)malloc(NTask * 6 * sizeof(int));
       RDMA_Allgather(count, 6, R_TYPE_INT, temp, 6, R_TYPE_INT);
       for(i = 0; i < 6; i++)
 	{

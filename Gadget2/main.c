@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 #include "allvars.h"
 #include "proto.h"
@@ -24,10 +24,10 @@ int main(int argc, char **argv)
   double t0, t1;
 
   RDMA_Init(&argc, &argv);
-  &ThisTask = RDMA_Rank();
-  &NTask = RDMA_Size();
+  ThisTask = RDMA_Rank();
+  NTask = RDMA_Size();
 
-  if(NTask <= 1)
+  if(NTask <= 0)
     {
       if(ThisTask == 0)
 	printf
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
   for(PTask = 0; NTask > (1 << PTask); PTask++);
 
-  if(argc < 2)
+  if(argc < 1)
     {
       if(ThisTask == 0)
 	{
@@ -46,10 +46,10 @@ int main(int argc, char **argv)
       endrun(0);
     }
 
-  strcpy(ParameterFile, argv[1]);
+  strcpy(ParameterFile, argv[0]);
 
-  if(argc >= 3)
-    RestartFlag = atoi(argv[2]);
+  if(argc >= 2)
+    RestartFlag = atoi(argv[1]);
   else
     RestartFlag = 0;
 

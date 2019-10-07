@@ -9,7 +9,7 @@
 
 
 #--------------------------------------- Basic operation mode of code
-OPT   +=  -DPERIODIC 
+# OPT   +=  -DPERIODIC 
 OPT   +=  -DUNEQUALSOFTENINGS
 
 
@@ -19,7 +19,7 @@ OPT   +=  -DWALLCLOCK
 
 
 #--------------------------------------- TreePM Options
-OPT   +=  -DPMGRID=128
+# OPT   +=  -DPMGRID=128
 #OPT   +=  -DPLACEHIGHRESREGION=3
 #OPT   +=  -DENLARGEREGION=1.2
 #OPT   +=  -DASMTH=1.25
@@ -40,7 +40,7 @@ OPT   +=  -DSYNCHRONIZATION
 
 
 #--------------------------------------- Output 
-OPT   +=  -DHAVE_HDF5  
+#OPT   +=  -DHAVE_HDF5  
 #OPT   +=  -DOUTPUTPOTENTIAL
 #OPT   +=  -DOUTPUTACCELERATION
 #OPT   +=  -DOUTPUTCHANGEOFENTROPY
@@ -92,15 +92,15 @@ SYSTYPE="MPA"
 #SYSTYPE="RZG_LinuxCluster"
 #SYSTYPE="RZG_LinuxCluster-gcc"
 #SYSTYPE="OpteronMPA"
-#SYSTYPE="OPA-Cluster32"
+#SYSTYPE="OPA-Cluster34"
 #SYSTYPE="OPA-Cluster64"
 
 
 #--------------------------------------- Adjust settings for target computer
 
 ifeq ($(SYSTYPE),"MPA")
-CC       =  mpicc   
-OPTIMIZE =  -O3 -Wall
+CC       =  g++   
+OPTIMIZE =  -O -g  -L./ffrdma/build/ -I./ffrdma/include -fpermissive -lfmpi
 #GSL_INCL =  -I/home/rdma_match/library/gsl/include/
 GSL_INCL = 
 #GSL_LIBS =  -L/home/rdma_match/library/gsl/lib/
@@ -229,18 +229,28 @@ INCL   = allvars.h  proto.h  tags.h  Makefile
 CFLAGS = $(OPTIONS) $(GSL_INCL) $(FFTW_INCL) $(HDF5INCL)
 
 
+# ifeq (NOTYPEPREFIX_FFTW,$(findstring NOTYPEPREFIX_FFTW,$(OPT)))    # fftw installed with type prefix?
+#   FFTW_LIB = $(FFTW_LIBS) -lrfftw_mpi -lfftw_mpi -lrfftw -lfftw
+# else
+# ifeq (DOUBLEPRECISION_FFTW,$(findstring DOUBLEPRECISION_FFTW,$(OPT)))
+#   FFTW_LIB = $(FFTW_LIBS) -ldrfftw_mpi -ldfftw_mpi -ldrfftw -ldfftw
+# else
+#   FFTW_LIB = $(FFTW_LIBS) -lsrfftw_mpi -lsfftw_mpi -lsrfftw -lsfftw
+# endif
+# endif
+
 ifeq (NOTYPEPREFIX_FFTW,$(findstring NOTYPEPREFIX_FFTW,$(OPT)))    # fftw installed with type prefix?
-  FFTW_LIB = $(FFTW_LIBS) -lrfftw_mpi -lfftw_mpi -lrfftw -lfftw
+  FFTW_LIB = $(FFTW_LIBS)
 else
 ifeq (DOUBLEPRECISION_FFTW,$(findstring DOUBLEPRECISION_FFTW,$(OPT)))
-  FFTW_LIB = $(FFTW_LIBS) -ldrfftw_mpi -ldfftw_mpi -ldrfftw -ldfftw
+  FFTW_LIB = $(FFTW_LIBS)
 else
-  FFTW_LIB = $(FFTW_LIBS) -lsrfftw_mpi -lsfftw_mpi -lsrfftw -lsfftw
+  FFTW_LIB = $(FFTW_LIBS)
 endif
 endif
 
 
-LIBS   =   $(HDF5LIB) -g  $(MPICHLIB)  $(GSL_LIBS) -lgsl -lgslcblas -lm $(FFTW_LIB) 
+LIBS   =   $(HDF5LIB) -g  $(MPICHLIB)  $(GSL_LIBS) -lgsl -lgslcblas -lm $(FFTW_LIB) -lfmpi -L./ffrdma/build -L./ffrdma/build/rsocket -lrsocket -lrdmacm -libverbs -lpthread
 
 $(EXEC): $(OBJS) 
 	$(CC) $(OBJS) $(LIBS)   -o  $(EXEC)  

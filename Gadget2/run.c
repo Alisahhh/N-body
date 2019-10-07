@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <unistd.h>
 
 #include "allvars.h"
@@ -191,7 +191,7 @@ void find_next_sync_point_and_drift(void)
     }
 
   /* note: NumForcesSinceLastDomainDecomp has type "long long" */
-  temp = malloc(NTask * sizeof(int));
+  temp =(int *) malloc(NTask * sizeof(int));
   RDMA_Allgather(&NumForceUpdate, 1, R_TYPE_INT, temp, 1, R_TYPE_INT);
   for(n = 0; n < NTask; n++)
     All.NumForcesSinceLastDomainDecomp += temp[n];

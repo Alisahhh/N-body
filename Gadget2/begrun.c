@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <sys/types.h>
 #include <unistd.h>
 #include <gsl/gsl_rng.h>
@@ -623,7 +623,7 @@ void read_parameter_file(char *fname)
 			  fprintf(fdout, "%-35s%g\n", buf1, *((double *) addr[j]));
 			  break;
 			case STRING:
-			  strcpy(addr[j], buf2);
+			  strcpy((char *)addr[j], buf2);
 			  fprintf(fdout, "%-35s%s\n", buf1, buf2);
 			  break;
 			case INT:

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 
 #include "allvars.h"
@@ -136,7 +136,7 @@ void compute_potential(void)
 	{
 	  for(j = 0; j < NTask; j++)
 	    nbuffer[j] = 0;
-		int sendrecvTable[NTask][NTask];
+		int sendrecvTable[NTask];
 		int totSendRecvCount = 0;
 	  	memset(sendrecvTable, 0, sizeof(sendrecvTable));
 	    

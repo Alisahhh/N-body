@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <gsl/gsl_math.h>
 #include "allvars.h"
 #include "proto.h"
@@ -284,7 +284,7 @@ void hydro_force(void)
 		      /* send the results */
 			  RDMA_Send(&HydroDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_out),
-				   R_TYPE_BYTE, recvTask));
+				   R_TYPE_BYTE, recvTask);
 				sendrecvTable[ThisTask] ++;
 				totSendRecvCount ++;
 		    //   MPI_Sendrecv(&HydroDataResult[nbuffer[ThisTask]],

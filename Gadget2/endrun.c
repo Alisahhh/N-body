@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <mpi.h>
+#include "mpi.hpp"
 #include <signal.h>
 #include <unistd.h>
 
@@ -33,7 +33,7 @@ void endrun(int ierr)
       raise(SIGABRT);
       sleep(60);
 #else
-      MPI_Abort(MPI_COMM_WORLD, ierr);
+      // MPI_Abort(MPI_COMM_WORLD, ierr);
 #endif
       exit(0);
     }

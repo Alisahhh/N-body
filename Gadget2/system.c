@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <gsl/gsl_rng.h>
-#include <mpi.h>
+#include "mpi.hpp"
 
 #include "allvars.h"
 #include "proto.h"
@@ -44,12 +44,12 @@ void set_random_numbers(void)
 
 
 /*! returns the number of cpu-ticks in seconds that have elapsed, or the
- *  wall-clock time obtained with MPI_Wtime().
+ *  wall-clock time obtained with RDMA_Wtime().
  */
 double second(void)
 {
 #ifdef WALLCLOCK
-  return MPI_Wtime();
+  return RDMA_Wtime();
 #else
   return ((double) clock()) / CLOCKS_PER_SEC;
 #endif
@@ -63,7 +63,7 @@ double second(void)
 /*! returns the time difference between two measurements obtained with
  *  second(). The routine takes care of the possible overflow of the tick
  *  counter on 32bit systems, but depending on the system, this may not always
- *  work properly. Similarly, in some MPI implementations, the MPI_Wtime()
+ *  work properly. Similarly, in some MPI implementations, the RDMA_Wtime()
  *  function may also overflow, in which case a negative time difference would
  *  be returned. The routine returns instead a time difference equal to 0.
  */
