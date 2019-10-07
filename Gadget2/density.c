@@ -191,7 +191,7 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
-				RMDA_Send(&DensDataIn[noffset[recvTask]], nsend_local[recvTask]*sizeof(struct densdata_in), 
+				RDMA_Send(&DensDataIn[noffset[recvTask]], nsend_local[recvTask]*sizeof(struct densdata_in), 
 				R_TYPE_BYTE, recvTask);
 				sendrecvTable[recvTask] ++;
 				totSendRecvCount ++;
@@ -209,18 +209,16 @@ void density(void)
 		    if((j ^ ngrp) < NTask)
 		      nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 		}
-		for(ThisTask = 0; ThisTask < NTask; ThisTask ++){
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
 			if(totSendRecvCount == 0) break;
-			for(recvid = 0; recvid < NTask; recvid ++){
-				if(sendrecvTable[recvid] == 0) continue;
-				if(totSendRecvCount == 0) break;
-				if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
-				    R_TYPE_BYTE, recvid) == 0) {
-					sendrecvTable[recvid] --;
-					totSendRecvCount --;
-				}
+			if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
+				R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
 			}
 		}
+	
 	      tend = second();
 	      timecommsumm += timediff(tstart, tend);
 
@@ -263,7 +261,7 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
-			RMDA_Send(&DensDataIn[noffset[recvTask],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+			RDMA_Send(&DensDataIn[noffset[recvTask],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
 			R_TYPE_BYTE, recvTask));
 			sendrecvTable[recvTask] ++;
 			totSendRecvCount ++;
@@ -318,16 +316,16 @@ void density(void)
 			
 		}
 
-			for(recvid = 0; recvid < NTask; recvid ++){
-				if(sendrecvTable[recvid] == 0) continue;
-				if(totSendRecvCount == 0) break;
-				if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
-					nsend_local[recvid] * sizeof(struct densdata_out),
-					R_TYPE_BYTE, recvid) == 0) {
-					sendrecvTable[recvid] --;
-					totSendRecvCount --;
-				}
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
+			if(totSendRecvCount == 0) break;
+			if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
+				nsend_local[recvid] * sizeof(struct densdata_out),
+				R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
 			}
+		}
 			
 	      tend = second();
 	      timecommsumm += timediff(tstart, tend);

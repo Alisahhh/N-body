@@ -282,6 +282,112 @@ void pmforce_periodic(void)
   for(i = 0; i < fftsize; i++)	/* clear local density field */
     rhogrid[i] = 0;
 
+
+	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
+	for(level = 0; level < (1 << PTask); level++){
+		sendTask = ThisTask;
+		recvTask = ThisTask ^ level;
+		if(recvTask >= NTask) continue;
+	  sendmin = 2 * PMGRID;
+	  sendmax = -1;
+	  for(slab_x = meshmin[0]; slab_x < meshmax[0] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == recvTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -1)
+	    sendmin = 0;
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -1;
+	  for(slab_x = meshmin_list[3 * recvTask]; slab_x < meshmax_list[3 * recvTask] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == sendTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -1)
+	    recvmin = 0;
+
+		if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+			{
+			recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 2;
+			recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
+			recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
+
+			if(recvTask < NTask){
+				if(level > 0){
+					RDMA_Send(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+						(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask);
+					sendrecvTable[recvTask] ++;
+					// MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+					// 	(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
+					// 	TAG_NONPERIOD_A, forcegrid,
+					// 	(recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
+					// 	recvTask, TAG_NONPERIOD_A, MPI_COMM_WORLD, &status);
+				}
+				else{
+				memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
+					(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
+				}
+			}
+		}
+	}
+
+	for(int i = 0; i < NTask;i ++){
+		if(sendrecvTable[i] == 0) continue;
+		sendTask = ThisTask;
+		recvTask = i;
+		sendmin = 2 * PMGRID;
+	  sendmax = -1;
+	  for(slab_x = meshmin[0]; slab_x < meshmax[0] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == recvTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -1)
+	    sendmin = 0;
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -1;
+	  for(slab_x = meshmin_list[3 * recvTask]; slab_x < meshmax_list[3 * recvTask] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == sendTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -1)
+	    recvmin = 0;
+		if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+		{
+			recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 2;
+			recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
+			recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
+
+			if(level > 0){
+				RDMA_Recv(forcegrid,(recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
+				 	R_TYPE_BYTE,recvTask);
+			}
+			
+		}
+	}
+
+
+
   for(level = 0; level < (1 << PTask); level++)	/* note: for level=0, target is the same task */
     {
       sendTask = ThisTask;
@@ -323,19 +429,19 @@ void pmforce_periodic(void)
 	      recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
 	      recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
 
-	      if(level > 0)
-		{
-		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
-			       TAG_PERIODIC_A, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
-			       recvTask, TAG_PERIODIC_A, MPI_COMM_WORLD, &status);
-		}
-	      else
-		{
-		  memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			 (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
-		}
+	    //   if(level > 0)
+		// {
+		//   MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+		// 	       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
+		// 	       TAG_PERIODIC_A, forcegrid,
+		// 	       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
+		// 	       recvTask, TAG_PERIODIC_A, MPI_COMM_WORLD, &status);
+		// }
+	    //   else
+		// {
+		//   memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
+		// 	 (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
+		// }
 
 	      for(slab_x = recvmin; slab_x <= recvmax; slab_x++)
 		{
@@ -368,6 +474,11 @@ void pmforce_periodic(void)
 	    }
 	}
     }
+
+
+
+
+
 
   /* Do the FFT of the density field */
 
@@ -442,6 +553,14 @@ void pmforce_periodic(void)
   dimy = meshmax[1] - meshmin[1] + 6;
   dimz = meshmax[2] - meshmin[2] + 6;
 
+
+
+
+
+
+	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
   for(level = 0; level < (1 << PTask); level++)	/* note: for level=0, target is the same task */
     {
       sendTask = ThisTask;
@@ -559,12 +678,16 @@ void pmforce_periodic(void)
 
 		  if(level > 0)
 		    {
-		      MPI_Sendrecv(forcegrid,
+				RDMA_Send(forcegrid,
 				   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-				   R_TYPE_BYTE, recvTask, TAG_PERIODIC_B,
-				   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
-				   recvTask, TAG_PERIODIC_B, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask);
+				sendrecvTable[recvTask] ++;
+		    //   MPI_Sendrecv(forcegrid,
+			// 	   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
+			// 	   R_TYPE_BYTE, recvTask, TAG_PERIODIC_B,
+			// 	   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
+			// 	   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
+			// 	   recvTask, TAG_PERIODIC_B, MPI_COMM_WORLD, &status);
 		    }
 		  else
 		    {
@@ -575,6 +698,59 @@ void pmforce_periodic(void)
 	    }
 	}
     }
+
+	for(int i = 0; i < NTask;i ++){
+		if(sendrecvTable[i] == 0) continue;
+		sendTask = ThisTask;
+		recvTask = i;
+				 /* check how much we have to send */
+	  sendmin = 2 * PMGRID;
+	  sendmax = -PMGRID;
+	  for(slab_x = meshmin_list[3 * recvTask] - 2; slab_x < meshmax_list[3 * recvTask] + 4; slab_x++)
+	    if(slab_to_task[(slab_x + PMGRID) % PMGRID] == sendTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -PMGRID)
+	    sendmin = sendmax + 1;
+
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -PMGRID;
+	  for(slab_x = meshmin[0] - 2; slab_x < meshmax[0] + 4; slab_x++)
+	    if(slab_to_task[(slab_x + PMGRID) % PMGRID] == recvTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -PMGRID)
+	    recvmin = recvmax + 1;
+
+	  if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+	    {
+	      recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 6;
+	      recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 6;
+	      recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 6;
+
+			if(level > 0){
+				RDMA_Recv(workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
+				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
+				   recvTask);
+			}
+			
+		}
+	}
+
+
+
+
+
 
 
   dimx = meshmax[0] - meshmin[0] + 2;
@@ -791,6 +967,111 @@ void pmpotential_periodic(void)
   for(i = 0; i < fftsize; i++)	/* clear local density field */
     rhogrid[i] = 0;
 
+	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
+	for(level = 0; level < (1 << PTask); level++){
+		sendTask = ThisTask;
+		recvTask = ThisTask ^ level;
+		if(recvTask >= NTask) continue;
+	  sendmin = 2 * PMGRID;
+	  sendmax = -1;
+	  for(slab_x = meshmin[0]; slab_x < meshmax[0] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == recvTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -1)
+	    sendmin = 0;
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -1;
+	  for(slab_x = meshmin_list[3 * recvTask]; slab_x < meshmax_list[3 * recvTask] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == sendTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -1)
+	    recvmin = 0;
+
+		if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+			{
+			recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 2;
+			recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
+			recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
+
+			if(recvTask < NTask){
+				if(level > 0){
+					RDMA_Send(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+						(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask);
+					sendrecvTable[recvTask] ++;
+					// MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+					// 	(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
+					// 	TAG_NONPERIOD_A, forcegrid,
+					// 	(recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
+					// 	recvTask, TAG_NONPERIOD_A, MPI_COMM_WORLD, &status);
+				}
+				else{
+				memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
+					(sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
+				}
+			}
+		}
+	}
+
+	for(int i = 0; i < NTask;i ++){
+		if(sendrecvTable[i] == 0) continue;
+		sendTask = ThisTask;
+		recvTask = i;
+		sendmin = 2 * PMGRID;
+	  sendmax = -1;
+	  for(slab_x = meshmin[0]; slab_x < meshmax[0] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == recvTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -1)
+	    sendmin = 0;
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -1;
+	  for(slab_x = meshmin_list[3 * recvTask]; slab_x < meshmax_list[3 * recvTask] + 2; slab_x++)
+	    if(slab_to_task[slab_x % PMGRID] == sendTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -1)
+	    recvmin = 0;
+		if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+		{
+			recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 2;
+			recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
+			recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
+
+			if(level > 0){
+				RDMA_Recv(forcegrid,(recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
+				 	R_TYPE_BYTE,recvTask);
+			}
+			
+		}
+	}
+
+
+
   for(level = 0; level < (1 << PTask); level++)	/* note: for level=0, target is the same task */
     {
       sendTask = ThisTask;
@@ -832,19 +1113,19 @@ void pmpotential_periodic(void)
 	      recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 2;
 	      recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 2;
 
-	      if(level > 0)
-		{
-		  MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
-			       TAG_PERIODIC_C, forcegrid,
-			       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
-			       recvTask, TAG_PERIODIC_C, MPI_COMM_WORLD, &status);
-		}
-	      else
-		{
-		  memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
-			 (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
-		}
+	    //   if(level > 0)
+		// {
+		//   MPI_Sendrecv(workspace + (sendmin - meshmin[0]) * dimy * dimz,
+		// 	       (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE, recvTask,
+		// 	       TAG_PERIODIC_A, forcegrid,
+		// 	       (recvmax - recvmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real), R_TYPE_BYTE,
+		// 	       recvTask, TAG_PERIODIC_A, MPI_COMM_WORLD, &status);
+		// }
+	    //   else
+		// {
+		//   memcpy(forcegrid, workspace + (sendmin - meshmin[0]) * dimy * dimz,
+		// 	 (sendmax - sendmin + 1) * dimy * dimz * sizeof(fftw_real));
+		// }
 
 	      for(slab_x = recvmin; slab_x <= recvmax; slab_x++)
 		{
@@ -950,6 +1231,9 @@ void pmpotential_periodic(void)
   dimy = meshmax[1] - meshmin[1] + 6;
   dimz = meshmax[2] - meshmin[2] + 6;
 
+ 	int sendrecvTable[NTask];
+	int totSendRecvCount = 0;
+	memset(sendrecvTable, 0, sizeof(sendrecvTable));
   for(level = 0; level < (1 << PTask); level++)	/* note: for level=0, target is the same task */
     {
       sendTask = ThisTask;
@@ -1067,12 +1351,16 @@ void pmpotential_periodic(void)
 
 		  if(level > 0)
 		    {
-		      MPI_Sendrecv(forcegrid,
+				RDMA_Send(forcegrid,
 				   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
-				   R_TYPE_BYTE, recvTask, TAG_PERIODIC_D,
-				   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
-				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
-				   recvTask, TAG_PERIODIC_D, MPI_COMM_WORLD, &status);
+				   R_TYPE_BYTE, recvTask);
+				sendrecvTable[recvTask] ++;
+		    //   MPI_Sendrecv(forcegrid,
+			// 	   (sendmax - sendmin + 1) * recv_dimy * recv_dimz * sizeof(fftw_real),
+			// 	   R_TYPE_BYTE, recvTask, TAG_PERIODIC_B,
+			// 	   workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
+			// 	   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
+			// 	   recvTask, TAG_PERIODIC_B, MPI_COMM_WORLD, &status);
 		    }
 		  else
 		    {
@@ -1084,6 +1372,53 @@ void pmpotential_periodic(void)
 	}
     }
 
+	for(int i = 0; i < NTask;i ++){
+		if(sendrecvTable[i] == 0) continue;
+		sendTask = ThisTask;
+		recvTask = i;
+				 /* check how much we have to send */
+	  sendmin = 2 * PMGRID;
+	  sendmax = -PMGRID;
+	  for(slab_x = meshmin_list[3 * recvTask] - 2; slab_x < meshmax_list[3 * recvTask] + 4; slab_x++)
+	    if(slab_to_task[(slab_x + PMGRID) % PMGRID] == sendTask)
+	      {
+		if(slab_x < sendmin)
+		  sendmin = slab_x;
+		if(slab_x > sendmax)
+		  sendmax = slab_x;
+	      }
+	  if(sendmax == -PMGRID)
+	    sendmin = sendmax + 1;
+
+
+	  /* check how much we have to receive */
+	  recvmin = 2 * PMGRID;
+	  recvmax = -PMGRID;
+	  for(slab_x = meshmin[0] - 2; slab_x < meshmax[0] + 4; slab_x++)
+	    if(slab_to_task[(slab_x + PMGRID) % PMGRID] == recvTask)
+	      {
+		if(slab_x < recvmin)
+		  recvmin = slab_x;
+		if(slab_x > recvmax)
+		  recvmax = slab_x;
+	      }
+	  if(recvmax == -PMGRID)
+	    recvmin = recvmax + 1;
+
+	  if((recvmax - recvmin) >= 0 || (sendmax - sendmin) >= 0)	/* ok, we have a contribution to the slab */
+	    {
+	      recv_dimx = meshmax_list[3 * recvTask + 0] - meshmin_list[3 * recvTask + 0] + 6;
+	      recv_dimy = meshmax_list[3 * recvTask + 1] - meshmin_list[3 * recvTask + 1] + 6;
+	      recv_dimz = meshmax_list[3 * recvTask + 2] - meshmin_list[3 * recvTask + 2] + 6;
+
+			if(level > 0){
+				RDMA_Recv(workspace + (recvmin - (meshmin[0] - 2)) * dimy * dimz,
+				   (recvmax - recvmin + 1) * dimy * dimz * sizeof(fftw_real), R_TYPE_BYTE,
+				   recvTask);
+			}
+			
+		}
+	}
 
   dimx = meshmax[0] - meshmin[0] + 2;
   dimy = meshmax[1] - meshmin[1] + 2;

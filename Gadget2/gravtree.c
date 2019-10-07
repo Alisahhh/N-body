@@ -339,7 +339,7 @@ void gravity_tree(void) {
           if (nsend[ThisTask * NTask + recvTask] > 0 ||
               nsend[recvTask * NTask + ThisTask] > 0) {
             /* get the particles */
-            RMDA_Send(&GravDataIn[noffset[recvTask]],
+            RDMA_Send(&GravDataIn[noffset[recvTask]],
                 nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
                 recvTask));
             sendrecvTable[recvTask] ++;
@@ -357,7 +357,7 @@ void gravity_tree(void) {
         for (j = 0; j < NTask; j++)
           if ((j ^ ngrp) < NTask) nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
       }
-      for(recvid = 0; recvid < NTask; recvid ++){
+      for(int recvid = 0; recvid < NTask; recvid ++){
         if(sendrecvTable[recvid] == 0) continue;
         if(totSendRecvCount == 0) break;
         if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
@@ -405,7 +405,7 @@ void gravity_tree(void) {
           if (nsend[ThisTask * NTask + recvTask] > 0 ||
               nsend[recvTask * NTask + ThisTask] > 0) {
             /* send the results */
-            RMDA_Send(&GravDataResult[nbuffer[ThisTask]],
+            RDMA_Send(&GravDataResult[nbuffer[ThisTask]],
                 nsend[recvTask * NTask + ThisTask] * sizeof(struct gravdata_in),
                 R_TYPE_BYTE, recvTask));
             sendrecvTable[recvTask] ++;
@@ -449,7 +449,7 @@ void gravity_tree(void) {
         }
       }
 
-      for(recvid = 0; recvid < NTask; recvid ++){
+      for(int recvid = 0; recvid < NTask; recvid ++){
         if(sendrecvTable[recvid] == 0) continue;
         if(totSendRecvCount == 0) break;
         if(RDMA_Irecv(&GravDataOut[noffset[recvid]],

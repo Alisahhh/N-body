@@ -735,7 +735,7 @@ void force_exchange_pseudodata(void)
     //  	recvTask = ThisTask ^ level;
 	// 	RDMA_Recv
 	// }
-	for(recvid = 0; recvid < NTask; recvid ++){
+	for(int recvid = 0; recvid < NTask; recvid ++){
 		if(sendrecvTable[recvid] == 0) continue;
 		if(totSendRecvCount == 0) break;
 		if(RDMA_Irecv( &DomainMoment[DomainStartList[recvid]],
@@ -940,7 +940,7 @@ void force_update_len(void)
 	  }
     }
 
-	for(recvid = 0; recvid < NTask; recvid ++){
+	for(int recvid = 0; recvid < NTask; recvid ++){
 		if(sendrecvTable[recvid] == 0) continue;
 		if(totSendRecvCount == 0) break;
 		if(RDMA_Irecv( &DomainTreeNodeLen[DomainStartList[recvid]],
@@ -1088,7 +1088,7 @@ void force_update_hmax(void)
 	// 	     R_TYPE_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
 	  }
 
-	for(recvid = 0; recvid < NTask; recvid ++){
+	for(int recvid = 0; recvid < NTask; recvid ++){
 		if(sendrecvTable[recvid] == 0) continue;
 		if(totSendRecvCount == 0) break;
 		if(RDMA_Irecv( &DomainHmax[DomainStartList[recvid]],

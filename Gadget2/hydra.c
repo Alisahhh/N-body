@@ -212,7 +212,7 @@ void hydro_force(void)
 		{
 		  if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 		    {
-				RMDA_Send(&HydroDataIn[noffset[recvTask]],
+				RDMA_Send(&HydroDataIn[noffset[recvTask]],
 				   nsend_local[recvTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
 				   recvTask);
 				sendrecvTable[recvTask] ++;
@@ -231,7 +231,7 @@ void hydro_force(void)
 		if((j ^ ngrp) < NTask)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
-		for(recvid = 0; recvid < NTask; recvid ++){
+		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(sendrecvTable[recvid] == 0) continue;
 			if(totSendRecvCount == 0) break;
 			if(RDMA_Irecv(&HydroDataGet[nbuffer[ThisTask]],
@@ -282,7 +282,7 @@ void hydro_force(void)
 		  if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 		    {
 		      /* send the results */
-			  RMDA_Send(&HydroDataResult[nbuffer[ThisTask]],
+			  RDMA_Send(&HydroDataResult[nbuffer[ThisTask]],
 				   nsend[recvTask * NTask + ThisTask] * sizeof(struct hydrodata_out),
 				   R_TYPE_BYTE, recvTask));
 				sendrecvTable[ThisTask] ++;
@@ -333,7 +333,7 @@ void hydro_force(void)
 			}
 		}
 	
-		for(recvid = 0; recvid < NTask; recvid ++){
+		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(sendrecvTable[recvid] == 0) continue;
 			if(totSendRecvCount == 0) break;
 			if(RDMA_Irecv(&HydroDataPartialResult[noffset[recvid]],

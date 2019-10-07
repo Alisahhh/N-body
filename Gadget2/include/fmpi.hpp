@@ -1,6 +1,6 @@
 #ifndef FMPI_HPP
 #define FMPI_HPP
-
+#include "process.hpp"
 struct Socket_;
 typedef Socket_ Socket;
 int RDMA_Init(int argc, char **argv);
