@@ -179,15 +179,18 @@ void compute_potential(void)
 		if((j ^ ngrp) < NTask)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
-				   nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
-				   recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(sendrecvTable[recvid] == 0) continue;
+				if(totSendRecvCount == 0) break;
+				if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
+					nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+					recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+			if(totSendRecvCount == 0) break;
 		}
 	
 
@@ -254,25 +257,27 @@ void compute_potential(void)
 
 	for(int recvid = 0; recvid < NTask; recvid ++){
         if(sendrecvTable[recvid] != 0){
-          for(j = 0; j < nsend_local[recvTask]; j++)
+          for(j = 0; j < nsend_local[recvid]; j++)
 			{
-				place = GravDataIndexTable[noffset[recvTask] + j].Index;
+				place = GravDataIndexTable[noffset[recvid] + j].Index;
 
-				P[place].Potential += (GravDataOut[j + noffset[recvTask]].u.Potential)*sendrecvTable[recvid];
+				P[place].Potential += (GravDataOut[j + noffset[recvid]].u.Potential)*sendrecvTable[recvid];
 			}
         }
       }
-
-      for(int recvid = 0; recvid < NTask; recvid ++){
-        if(sendrecvTable[recvid] == 0) continue;
-        if(totSendRecvCount == 0) break;
-        if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
-				   nsend_local[recvid] * sizeof(struct gravdata_in),
-				   R_TYPE_BYTE, recvid) == 0) {
-          sendrecvTable[recvTask] --;
-          totSendRecvCount --;
-        }
-      }
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(totSendRecvCount == 0) break;
+				if(sendrecvTable[recvid] == 0) continue;
+				if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
+						nsend_local[recvid] * sizeof(struct gravdata_in),
+						R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+				}
+			}
+			if(totSendRecvCount == 0) break;
+		}
 
 	  level = ngrp - 1;
 	}

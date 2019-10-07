@@ -231,15 +231,19 @@ void hydro_force(void)
 		if((j ^ ngrp) < NTask)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv(&HydroDataGet[nbuffer[ThisTask]],
-				nsend[recvid * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
-				recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(totSendRecvCount == 0) break;
+				if(sendrecvTable[recvid] == 0) continue;
+				// if(totSendRecvCount == 0) break;
+				if(RDMA_Irecv(&HydroDataGet[nbuffer[ThisTask]],
+					nsend[recvid * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
+					recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+			if(totSendRecvCount == 0) break;
 		}
 	
 	  tend = second();
@@ -332,16 +336,19 @@ void hydro_force(void)
 				}
 			}
 		}
-	
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv(&HydroDataPartialResult[noffset[recvid]],
-				nsend_local[recvid] * sizeof(struct hydrodata_out),
-				R_TYPE_BYTE, recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(totSendRecvCount == 0) break;
+				if(sendrecvTable[recvid] == 0) continue;
+				
+				if(RDMA_Irecv(&HydroDataPartialResult[noffset[recvid]],
+					nsend_local[recvid] * sizeof(struct hydrodata_out),
+					R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+			if(totSendRecvCount == 0) break;
 		}
 	  tend = second();
 	  timecommsumm += timediff(tstart, tend);

@@ -63,6 +63,16 @@ void run(void)
 					 * timesteps for them
 					 */
       All.NumCurrentTiStep++;
+	//   int local_rank =  RDMA_Rank();
+	// 	int other_rank =  local_rank^1;
+	// 	int tmp[1] = {local_rank};
+	// 	// RDMA_Send(tmp, 1,R_TYPE_INT,other_rank);
+	// 	printf("RDMA_Recv = %d\n",RDMA_Recv(tmp,1,R_TYPE_INT,other_rank));
+	// 	if(tmp[0]!=other_rank){
+	// 		printf("boom!!!!!!!!!\n");
+	// 	}
+	// 	printf("tmp = %d\n",tmp[0]);
+	  printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
       /* Check whether we need to interrupt the run */
       if(ThisTask == 0)
@@ -84,7 +94,7 @@ void run(void)
 	}
 
       RDMA_Bcast(&stopflag, 1, R_TYPE_INT, 0);
-
+	   printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
       if(stopflag)
 	{
 	  restart(0);		/* write restart file */

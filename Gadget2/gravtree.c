@@ -156,8 +156,10 @@ void gravity_tree(void) {
       for (j = 0; j < NTask; j++) nbuffer[j] = 0;
 
       int sendrecvTable[NTask];
+      int tmp[NTask];
       int totSendRecvCount = 0;
       memset(sendrecvTable, 0, sizeof(sendrecvTable));
+      memset(tmp, 0, sizeof(tmp));
       
       for (ngrp = level; ngrp < (1 << PTask); ngrp++) {
         maxfill = 0;
@@ -179,8 +181,9 @@ void gravity_tree(void) {
                 nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
                 recvTask);
             sendrecvTable[recvTask] ++;
+            tmp[recvTask]++;
             totSendRecvCount ++;
-
+            // printf("local_rank = %d recv_rank = %d length = %d\n",ThisTask,recvTask, nsend_local[recvTask] * sizeof(struct gravdata_in));
             // MPI_Sendrecv(
             //     &GravDataIn[noffset[recvTask]],
             //     nsend_local[recvTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
@@ -193,15 +196,28 @@ void gravity_tree(void) {
         for (j = 0; j < NTask; j++)
           if ((j ^ ngrp) < NTask) nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
       }
-      for(int recvid = 0; recvid < NTask; recvid ++){
-        if(sendrecvTable[recvid] == 0) continue;
-        if(totSendRecvCount == 0) break;
-        if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
-              nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in),
-              R_TYPE_BYTE, recvid) == 0) {
-          sendrecvTable[recvTask] --;
-          totSendRecvCount --;
+      for(int j = 0;j < NTask; j++){
+        printf("%d ",sendrecvTable[j]);
+      }
+      printf("\n");
+      for(int j = 0;j < NTask; j++){
+        printf("%d ",tmp[j]);
+      }
+      printf("\n");
+      while(1){
+        for(int recvid = 0; recvid < NTask; recvid ++){
+          if(totSendRecvCount == 0) break;
+          if(sendrecvTable[recvid] == 0) continue;
+          // printf("local_rank = %d recv_rank = %d length = %d\n",ThisTask,recvid, nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in));
+          // if(totSendRecvCount == 0) break;
+          if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
+                nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in),
+                R_TYPE_BYTE, recvid) == 0) {
+            sendrecvTable[recvid] --;
+            totSendRecvCount --;
+          }
         }
+        if(totSendRecvCount == 0) break;
       }
     
       tend = second();
@@ -272,7 +288,7 @@ void gravity_tree(void) {
       }
       for(int recvid = 0; recvid < NTask; recvid ++){
         if(sendrecvTable[recvid] != 0){
-          for (j = 0; j < nsend_local[recvTask]; j++) {
+          for (j = 0; j < nsend_local[recvid]; j++) {
             place = GravDataIndexTable[noffset[recvid] + j].Index;
 
             for (k = 0; k < 3; k++)
@@ -284,18 +300,20 @@ void gravity_tree(void) {
           }
         }
       }
-
-      for(int recvid = 0; recvid < NTask; recvid ++){
-        if(sendrecvTable[recvid] == 0) continue;
-        if(totSendRecvCount == 0) break;
-        if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
-              nsend_local[recvid] * sizeof(struct gravdata_in), R_TYPE_BYTE,
-              recvid) == 0) {
-          sendrecvTable[recvTask] --;
-          totSendRecvCount --;
+      while(1){
+        for(int recvid = 0; recvid < NTask; recvid ++){
+          if(totSendRecvCount == 0) break;
+          if(sendrecvTable[recvid] == 0) continue;
+          // if(totSendRecvCount == 0) break;
+          if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
+                nsend_local[recvid] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+                recvid) == 0) {
+            sendrecvTable[recvid] --;
+            totSendRecvCount --;
+          }
         }
+        if(totSendRecvCount == 0) break;
       }
-    
       tend = second();
       timecommsumm += timediff(tstart, tend);
 

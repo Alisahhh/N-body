@@ -862,14 +862,15 @@ void domain_findExtent(void)
 
   RDMA_Allreduce(xmin, xmin_glob, 3, R_TYPE_DOUBLE, R_OP_MIN);
   RDMA_Allreduce(xmax, xmax_glob, 3, R_TYPE_DOUBLE, R_OP_MAX);
+  
   for(int i = 0; i < 3;i ++){
-    printf("xmin[%d] %lf\n",i,xmin[i]);
+    printf("xmin[%d] %lf\n",i,xmin_glob[i]);
   }
 
   for(int i = 0; i < 3;i ++){
-    printf("xmax[%d] %lf\n",i,xmax[i]);
+    printf("xmax[%d] %lf\n",i,xmax_glob[i]);
   }
-  
+
   len = 0;
   for(j = 0; j < 3; j++)
     if(xmax_glob[j] - xmin_glob[j] > len)
@@ -932,10 +933,10 @@ void domain_determineTopTree(void)
 
   ntopnodelist = malloc(sizeof(int) * NTask);
   ntopoffset = malloc(sizeof(int) * NTask);
-
+  printf("ntop_local %d \n",ntop_local);
   printf("%d\n",RDMA_Allgather(&ntop_local, 1, R_TYPE_INT, ntopnodelist, 1, R_TYPE_INT));
-  printf("ntop_local = %d\n", ntop_local);
-  for(int i = 0;i < 1; i++){
+  // printf("ntop_local = %d\n", ntop_local);
+  for(int i = 0;i < 2; i++){
     printf("ntopnodelist[%d] = %d\n",i,ntopnodelist[i]);
   }
   for(i = 0, ntop = 0, ntopoffset[0] = 0; i < NTask; i++)

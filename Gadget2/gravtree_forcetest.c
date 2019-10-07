@@ -178,15 +178,18 @@ void gravity_forcetest(void)
 		  nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 	    }
 		
-	for(int recvid = 0; recvid < NTask; recvid ++){
-		if(sendrecvTable[recvid] == 0) continue;
-		if(totSendRecvCount == 0) break;
-		if(RDMA_Irecv( &GravDataGet[nbuffer[ThisTask]],
-				   nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
-				   recvid) == 0) {
-			sendrecvTable[recvid] --;
-			totSendRecvCount --;
+	while(1){
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
+			if(totSendRecvCount == 0) break;
+			if(RDMA_Irecv( &GravDataGet[nbuffer[ThisTask]],
+					nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in), R_TYPE_BYTE,
+					recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
 		}
+		if(totSendRecvCount == 0) break;
 	}
 
 	  tstart = second();
@@ -251,25 +254,28 @@ void gravity_forcetest(void)
 	    }
 		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(sendrecvTable[recvid] != 0){
-				for(j = 0; j < nsend_local[recvTask]; j++)
+				for(j = 0; j < nsend_local[recvid]; j++)
 				{
-				place = GravDataIndexTable[noffset[recvTask] + j].Index;
+				place = GravDataIndexTable[noffset[recvid] + j].Index;
 
 				for(k = 0; k < 3; k++)
-					P[place].GravAccelDirect[k] += GravDataOut[j + noffset[recvTask]].u.Acc[k];
+					P[place].GravAccelDirect[k] += GravDataOut[j + noffset[recvid]].u.Acc[k];
 				}
 			}
 			
 		}
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv( &GravDataOut[noffset[recvid]],
-				   nsend_local[recvid] * sizeof(struct gravdata_in),
-				   R_TYPE_BYTE, recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(sendrecvTable[recvid] == 0) continue;
+				if(totSendRecvCount == 0) break;
+				if(RDMA_Irecv( &GravDataOut[noffset[recvid]],
+					nsend_local[recvid] * sizeof(struct gravdata_in),
+					R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+		if(totSendRecvCount == 0) break;
 		}
 
 

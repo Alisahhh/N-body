@@ -61,11 +61,20 @@ static double fac_intp;
 int force_treebuild(int npart)
 {
   Numnodestree = force_treebuild_single(npart);
-
+  puts("64");
   force_update_pseudoparticles();
-
+  puts("66");
+//   int local_rank =  RDMA_Rank();
+//   int other_rank =  local_rank^1;
+//   int tmp[1] = {local_rank};
+//   // RDMA_Send(tmp, 1,R_TYPE_INT,other_rank);
+//   printf("RDMA_Recv = %d\n",RDMA_Recv(tmp,1,R_TYPE_INT,other_rank));
+//   if(tmp[0]!=other_rank){
+//     printf("boom!!!!!!!!!\n");
+//   }
+//   printf("tmp = %d\n",tmp[0]);
   force_flag_localnodes();
-
+  puts("68");
   TimeOfLastTreeConstruction = All.Time;
 
   return Numnodestree;
@@ -671,7 +680,15 @@ void force_update_node_recursive(int no, int sib, int father)
 void force_update_pseudoparticles(void)
 {
   force_exchange_pseudodata();
-
+//   int local_rank =  RDMA_Rank();
+//   int other_rank =  local_rank^1;
+//   int tmp[1] = {local_rank};
+//   // RDMA_Send(tmp, 1,R_TYPE_INT,other_rank);
+//   printf("RDMA_Recv = %d\n",RDMA_Recv(tmp,1,R_TYPE_INT,other_rank));
+//   if(tmp[0]!=other_rank){
+//     printf("boom!!!!!!!!!\n");
+//   }
+//   printf("tmp = %d\n",tmp[0]);
   force_treeupdate_pseudos();
 }
 
@@ -735,15 +752,18 @@ void force_exchange_pseudodata(void)
     //  	recvTask = ThisTask ^ level;
 	// 	RDMA_Recv
 	// }
-	for(int recvid = 0; recvid < NTask; recvid ++){
-		if(sendrecvTable[recvid] == 0) continue;
-		if(totSendRecvCount == 0) break;
-		if(RDMA_Irecv( &DomainMoment[DomainStartList[recvid]],
-		(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(struct DomainNODE),
-		R_TYPE_BYTE, recvid) == 0) {
-			sendrecvTable[recvid] --;
-			totSendRecvCount --;
+	while(1){
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(totSendRecvCount == 0) break;
+			if(sendrecvTable[recvid] == 0) continue;
+			if(RDMA_Irecv( &DomainMoment[DomainStartList[recvid]],
+			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(struct DomainNODE),
+			R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
 		}
+		if(totSendRecvCount == 0) break;
 	}
 }
 
@@ -939,18 +959,19 @@ void force_update_len(void)
 	// 	     R_TYPE_BYTE, recvTask, TAG_NODELEN, MPI_COMM_WORLD, &status);
 	  }
     }
-
-	for(int recvid = 0; recvid < NTask; recvid ++){
-		if(sendrecvTable[recvid] == 0) continue;
-		if(totSendRecvCount == 0) break;
-		if(RDMA_Irecv( &DomainTreeNodeLen[DomainStartList[recvid]],
-			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
-			R_TYPE_BYTE, recvid) == 0) {
-			sendrecvTable[recvid] --;
-			totSendRecvCount --;
+	while(1){
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(totSendRecvCount == 0) break;
+			if(sendrecvTable[recvid] == 0) continue;
+			if(RDMA_Irecv( &DomainTreeNodeLen[DomainStartList[recvid]],
+				(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
+				R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
 		}
+		if(totSendRecvCount == 0) break;
 	}
-	
 
   /* Finally, we update the top-level tree. */
   force_update_node_len_toptree();
@@ -1087,16 +1108,18 @@ void force_update_hmax(void)
 	// 	     (DomainEndList[recvTask] - DomainStartList[recvTask] + 1) * sizeof(FLOAT),
 	// 	     R_TYPE_BYTE, recvTask, TAG_HMAX, MPI_COMM_WORLD, &status);
 	  }
-
-	for(int recvid = 0; recvid < NTask; recvid ++){
-		if(sendrecvTable[recvid] == 0) continue;
-		if(totSendRecvCount == 0) break;
-		if(RDMA_Irecv( &DomainHmax[DomainStartList[recvid]],
-			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
-			R_TYPE_BYTE, recvid) == 0) {
-			sendrecvTable[recvid] --;
-			totSendRecvCount --;
+	while(1){
+		for(int recvid = 0; recvid < NTask; recvid ++){
+			if(sendrecvTable[recvid] == 0) continue;
+			if(totSendRecvCount == 0) break;
+			if(RDMA_Irecv( &DomainHmax[DomainStartList[recvid]],
+				(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
+				R_TYPE_BYTE, recvid) == 0) {
+				sendrecvTable[recvid] --;
+				totSendRecvCount --;
+			}
 		}
+		if(totSendRecvCount == 0) break;
 	}
 	
     }

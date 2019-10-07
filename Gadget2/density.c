@@ -172,7 +172,7 @@ void density(void)
 		int sendrecvTable[NTask];
 		int totSendRecvCount = 0;
 	  	memset(sendrecvTable, 0, sizeof(sendrecvTable));
-	      for(ngrp = level; ngrp < (1 << PTask); ngrp++)
+	    for(ngrp = level; ngrp < (1 << PTask); ngrp++)
 		{
 		  maxfill = 0;
 		  for(j = 0; j < NTask; j++)
@@ -209,14 +209,18 @@ void density(void)
 		    if((j ^ ngrp) < NTask)
 		      nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
 		}
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
-				R_TYPE_BYTE, recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(totSendRecvCount == 0) break;
+				if(sendrecvTable[recvid] == 0) continue;
+				
+				if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
+					R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+			if(totSendRecvCount == 0) break;
 		}
 	
 	      tend = second();
@@ -242,7 +246,7 @@ void density(void)
 
 		memset(sendrecvTable, 0 ,sizeof(sendrecvTable));
 		totSendRecvCount = 0;
-	      for(ngrp = level; ngrp < (1 << PTask); ngrp++)
+	    for(ngrp = level; ngrp < (1 << PTask); ngrp++)
 		{
 		  maxfill = 0;
 		  for(j = 0; j < NTask; j++)
@@ -261,8 +265,9 @@ void density(void)
 		    {
 		      if(nsend[ThisTask * NTask + recvTask] > 0 || nsend[recvTask * NTask + ThisTask] > 0)
 			{
-			RDMA_Send(&DensDataIn[noffset[recvTask]],nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
-			R_TYPE_BYTE, recvTask);
+			RDMA_Send(&DensDataResult[nbuffer[ThisTask]],
+				       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+				       R_TYPE_BYTE, recvTask);
 			sendrecvTable[recvTask] ++;
 			totSendRecvCount ++;
 			  /* send the results */
@@ -316,15 +321,27 @@ void density(void)
 			
 		}
 
-		for(int recvid = 0; recvid < NTask; recvid ++){
-			if(sendrecvTable[recvid] == 0) continue;
-			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
-				nsend_local[recvid] * sizeof(struct densdata_out),
-				R_TYPE_BYTE, recvid) == 0) {
-				sendrecvTable[recvid] --;
-				totSendRecvCount --;
+		while(1){
+			/* send the results */
+			//   MPI_Sendrecv(&DensDataResult[nbuffer[ThisTask]],
+			// 	       nsend[recvTask * NTask + ThisTask] * sizeof(struct densdata_out),
+			// 	       R_TYPE_BYTE, recvTask, TAG_DENS_B,
+			// 	       &DensDataPartialResult[noffset[recvTask]],
+			// 	       nsend_local[recvTask] * sizeof(struct densdata_out),
+			// 	       R_TYPE_BYTE, recvTask, TAG_DENS_B, MPI_COMM_WORLD, &status);
+
+			for(int recvid = 0; recvid < NTask; recvid ++){
+				if(totSendRecvCount == 0) break;
+				if(sendrecvTable[recvid] == 0) continue;
+				
+				if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
+				       nsend_local[recvid] * sizeof(struct densdata_out),
+				       R_TYPE_BYTE, recvid) == 0) {
+					sendrecvTable[recvid] --;
+					totSendRecvCount --;
+				}
 			}
+			if(totSendRecvCount == 0) break;
 		}
 			
 	      tend = second();
