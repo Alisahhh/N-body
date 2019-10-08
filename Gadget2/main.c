@@ -27,7 +27,7 @@ int main(int argc, char **argv)
   ThisTask = RDMA_Rank();
   NTask = RDMA_Size();
 
-  if(NTask <= 0)
+  if(NTask <= 1)
     {
       if(ThisTask == 0)
 	printf
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
   for(PTask = 0; NTask > (1 << PTask); PTask++);
 
-  if(argc < 1)
+  if(argc < 2)
     {
       if(ThisTask == 0)
 	{
@@ -46,10 +46,10 @@ int main(int argc, char **argv)
       endrun(0);
     }
 
-  strcpy(ParameterFile, argv[0]);
+  strcpy(ParameterFile, argv[1]);
 
   if(argc >= 2)
-    RestartFlag = atoi(argv[1]);
+    RestartFlag = atoi(argv[2]);
   else
     RestartFlag = 0;
 

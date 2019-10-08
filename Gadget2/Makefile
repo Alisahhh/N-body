@@ -100,7 +100,7 @@ SYSTYPE="MPA"
 
 ifeq ($(SYSTYPE),"MPA")
 CC       =  g++   
-OPTIMIZE =  -O -g  -L./ffrdma/build/ -I./ffrdma/include -fpermissive -lfmpi
+OPTIMIZE =  -O3  -L./ffrdma/build/ -I./ffrdma/include -fpermissive -lfmpi
 #GSL_INCL =  -I/home/rdma_match/library/gsl/include/
 GSL_INCL = 
 #GSL_LIBS =  -L/home/rdma_match/library/gsl/lib/
