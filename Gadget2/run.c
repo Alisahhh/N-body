@@ -72,7 +72,7 @@ void run(void)
 	// 		printf("boom!!!!!!!!!\n");
 	// 	}
 	// 	printf("tmp = %d\n",tmp[0]);
-	  printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
+	//   printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
       /* Check whether we need to interrupt the run */
       if(ThisTask == 0)
@@ -94,7 +94,7 @@ void run(void)
 	}
 
       RDMA_Bcast(&stopflag, 1, R_TYPE_INT, 0);
-	   printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
+	//    printf("!!!!!!!!!!!!!!!!!!!!!!!!\n");
       if(stopflag)
 	{
 	  restart(0);		/* write restart file */
