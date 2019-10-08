@@ -137,9 +137,9 @@ void init(void)
   domain_Decomposition();	/* do initial domain decomposition (gives equal numbers of particles) */
 
   ngb_treebuild();		/* will build tree */
-  printf("!!!!!!!ngb_treebuild()!!!!!!\n");
+  // printf("!!!!!!!ngb_treebuild()!!!!!!\n");
   setup_smoothinglengths();
-  printf("!!!!!!!setup_smoothinglengths()!!!!!!\n");
+  // printf("!!!!!!!setup_smoothinglengths()!!!!!!\n");
   TreeReconstructFlag = 1;
 
   /* at this point, the entropy variable normally contains the 
@@ -152,7 +152,7 @@ void init(void)
     for(i = 0; i < N_gas; i++)
       SphP[i].Entropy = GAMMA_MINUS1 * SphP[i].Entropy / pow(SphP[i].Density / a3, GAMMA_MINUS1);
 #endif
-  printf("!!!!!!!done init()!!!!!!\n");
+  // printf("!!!!!!!done init()!!!!!!\n");
 }
 
 

@@ -196,14 +196,14 @@ void gravity_tree(void) {
         for (j = 0; j < NTask; j++)
           if ((j ^ ngrp) < NTask) nbuffer[j] += nsend[(j ^ ngrp) * NTask + j];
       }
-      for(int j = 0;j < NTask; j++){
-        printf("%d ",sendrecvTable[j]);
-      }
-      printf("\n");
-      for(int j = 0;j < NTask; j++){
-        printf("%d ",tmp[j]);
-      }
-      printf("\n");
+      // for(int j = 0;j < NTask; j++){
+      //   printf("%d ",sendrecvTable[j]);
+      // }
+      // printf("\n");
+      // for(int j = 0;j < NTask; j++){
+      //   printf("%d ",tmp[j]);
+      // }
+      // printf("\n");
       while(1){
         for(int recvid = 0; recvid < NTask; recvid ++){
           if(totSendRecvCount == 0) break;

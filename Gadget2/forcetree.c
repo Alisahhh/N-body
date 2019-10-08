@@ -61,9 +61,9 @@ static double fac_intp;
 int force_treebuild(int npart)
 {
   Numnodestree = force_treebuild_single(npart);
-  puts("64");
+//   puts("64");
   force_update_pseudoparticles();
-  puts("66");
+//   puts("66");
 //   int local_rank =  RDMA_Rank();
 //   int other_rank =  local_rank^1;
 //   int tmp[1] = {local_rank};
@@ -74,7 +74,7 @@ int force_treebuild(int npart)
 //   }
 //   printf("tmp = %d\n",tmp[0]);
   force_flag_localnodes();
-  puts("68");
+//   puts("68");
   TimeOfLastTreeConstruction = All.Time;
 
   return Numnodestree;

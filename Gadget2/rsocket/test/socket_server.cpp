@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
             printf("stop recv !\n");
             break;
         }
-        printf("%s\n", buffer->buffer);
-        printf("node_id: %d\n", buffer->node_id);
+            // printf("%s\n", buffer->buffer);
+            // printf("node_id: %d\n", buffer->node_id);
         AMessage_destroy(buffer); 
     }
 
