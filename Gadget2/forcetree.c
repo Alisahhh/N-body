@@ -756,7 +756,7 @@ void force_exchange_pseudodata(void)
 		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(totSendRecvCount == 0) break;
 			if(sendrecvTable[recvid] == 0) continue;
-			if(RDMA_Irecv( &DomainMoment[DomainStartList[recvid]],
+			if(RDMA_Recv( &DomainMoment[DomainStartList[recvid]],
 			(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(struct DomainNODE),
 			R_TYPE_BYTE, recvid) == 0) {
 				sendrecvTable[recvid] --;
@@ -963,7 +963,7 @@ void force_update_len(void)
 		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(totSendRecvCount == 0) break;
 			if(sendrecvTable[recvid] == 0) continue;
-			if(RDMA_Irecv( &DomainTreeNodeLen[DomainStartList[recvid]],
+			if(RDMA_Recv( &DomainTreeNodeLen[DomainStartList[recvid]],
 				(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
 				R_TYPE_BYTE, recvid) == 0) {
 				sendrecvTable[recvid] --;
@@ -1112,7 +1112,7 @@ void force_update_hmax(void)
 		for(int recvid = 0; recvid < NTask; recvid ++){
 			if(sendrecvTable[recvid] == 0) continue;
 			if(totSendRecvCount == 0) break;
-			if(RDMA_Irecv( &DomainHmax[DomainStartList[recvid]],
+			if(RDMA_Recv( &DomainHmax[DomainStartList[recvid]],
 				(DomainEndList[recvid] - DomainStartList[recvid] + 1) * sizeof(FLOAT),
 				R_TYPE_BYTE, recvid) == 0) {
 				sendrecvTable[recvid] --;

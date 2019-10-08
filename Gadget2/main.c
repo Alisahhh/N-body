@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 
   strcpy(ParameterFile, argv[1]);
 
-  if(argc >= 2)
+  if(argc >= 3)
     RestartFlag = atoi(argv[2]);
   else
     RestartFlag = 0;

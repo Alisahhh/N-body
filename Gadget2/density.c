@@ -214,7 +214,7 @@ void density(void)
 				if(totSendRecvCount == 0) break;
 				if(sendrecvTable[recvid] == 0) continue;
 				
-				if(RDMA_Irecv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
+				if(RDMA_Recv(&DensDataGet[nbuffer[ThisTask]],nsend[recvid * NTask + ThisTask] * sizeof(struct densdata_in),
 					R_TYPE_BYTE, recvid) == 0) {
 					sendrecvTable[recvid] --;
 					totSendRecvCount --;
@@ -334,7 +334,7 @@ void density(void)
 				if(totSendRecvCount == 0) break;
 				if(sendrecvTable[recvid] == 0) continue;
 				
-				if(RDMA_Irecv(&DensDataPartialResult[noffset[recvid]],
+				if(RDMA_Recv(&DensDataPartialResult[noffset[recvid]],
 				       nsend_local[recvid] * sizeof(struct densdata_out),
 				       R_TYPE_BYTE, recvid) == 0) {
 					sendrecvTable[recvid] --;

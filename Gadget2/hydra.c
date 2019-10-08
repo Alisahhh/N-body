@@ -236,7 +236,7 @@ void hydro_force(void)
 				if(totSendRecvCount == 0) break;
 				if(sendrecvTable[recvid] == 0) continue;
 				// if(totSendRecvCount == 0) break;
-				if(RDMA_Irecv(&HydroDataGet[nbuffer[ThisTask]],
+				if(RDMA_Recv(&HydroDataGet[nbuffer[ThisTask]],
 					nsend[recvid * NTask + ThisTask] * sizeof(struct hydrodata_in), R_TYPE_BYTE,
 					recvid) == 0) {
 					sendrecvTable[recvid] --;
@@ -341,7 +341,7 @@ void hydro_force(void)
 				if(totSendRecvCount == 0) break;
 				if(sendrecvTable[recvid] == 0) continue;
 				
-				if(RDMA_Irecv(&HydroDataPartialResult[noffset[recvid]],
+				if(RDMA_Recv(&HydroDataPartialResult[noffset[recvid]],
 					nsend_local[recvid] * sizeof(struct hydrodata_out),
 					R_TYPE_BYTE, recvid) == 0) {
 					sendrecvTable[recvid] --;

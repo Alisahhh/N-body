@@ -210,7 +210,7 @@ void gravity_tree(void) {
           if(sendrecvTable[recvid] == 0) continue;
           // printf("local_rank = %d recv_rank = %d length = %d\n",ThisTask,recvid, nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in));
           // if(totSendRecvCount == 0) break;
-          if(RDMA_Irecv(&GravDataGet[nbuffer[ThisTask]],
+          if(RDMA_Recv(&GravDataGet[nbuffer[ThisTask]],
                 nsend[recvid * NTask + ThisTask] * sizeof(struct gravdata_in),
                 R_TYPE_BYTE, recvid) == 0) {
             sendrecvTable[recvid] --;
@@ -305,7 +305,7 @@ void gravity_tree(void) {
           if(totSendRecvCount == 0) break;
           if(sendrecvTable[recvid] == 0) continue;
           // if(totSendRecvCount == 0) break;
-          if(RDMA_Irecv(&GravDataOut[noffset[recvid]],
+          if(RDMA_Recv(&GravDataOut[noffset[recvid]],
                 nsend_local[recvid] * sizeof(struct gravdata_in), R_TYPE_BYTE,
                 recvid) == 0) {
             sendrecvTable[recvid] --;
